@@ -1,0 +1,15 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Redirecting...</title>
+    <script>
+      const path = window.location.pathname.replace(/^\/crypto-lab-mceliece-gate(?=\/|$)/, "");
+      const target = "/crypto-lab-mceliece-gate/" + (path.startsWith("/") ? path.slice(1) : path);
+      window.location.replace(target);
+    </script>
+  </head>
+  <body>
+    Redirecting...
+  </body>
+</html>
