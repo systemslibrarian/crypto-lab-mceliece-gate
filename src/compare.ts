@@ -51,7 +51,7 @@ export const COMPARISON_ROWS: KEMComparisonRow[] = [
     keygenCycles: 1870000,
     encapCycles: 3010000,
     decapCycles: 3790000,
-    securityAssumption: "Code-based decoding in rank and Hamming metrics",
+    securityAssumption: "Quasi-cyclic syndrome decoding (Hamming metric)",
     yearsOfCryptanalysis: "~8",
     source: "HQC submission benchmark tables (Haswell ref cycles)"
   }
