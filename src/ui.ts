@@ -33,9 +33,7 @@ function esc(s: string): string {
 }
 
 function getEffectiveTheme(): string {
-  const explicit = document.documentElement.getAttribute("data-theme");
-  if (explicit) return explicit;
-  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  return document.documentElement.getAttribute("data-theme") ?? "dark";
 }
 
 function schemeTag(name: string): string {
@@ -55,13 +53,13 @@ function schemeTag(name: string): string {
 function renderHeader(): string {
   const isDark = getEffectiveTheme() === "dark";
   const label = isDark ? "Switch to light mode" : "Switch to dark mode";
-  const icon = isDark ? "\u2600\ufe0f" : "\u{1f319}";
+  const icon = isDark ? "\u{1f319}" : "\u2600\ufe0f";
   return `
   <header class="demo-header" aria-label="Demo header">
+    <button id="theme-toggle" class="theme-toggle" type="button"
+            aria-label="${label}" style="position: absolute; top: 0; right: 0"><span aria-hidden="true">${icon}</span></button>
     <div class="header-top">
       <span class="category-chip">Post-Quantum KEM</span>
-      <button id="theme-toggle" class="theme-toggle" type="button"
-              aria-label="${label}"><span aria-hidden="true">${icon}</span> <span id="theme-label">${isDark ? "Light" : "Dark"}</span></button>
     </div>
     <h1>McEliece Gate</h1>
     <p class="subtitle">Classic McEliece in the browser — binary Goppa structure, massive keys, and conservative post-quantum assurance.</p>
@@ -438,31 +436,23 @@ function buildPage(): string {
    ====================================================================== */
 
 function initThemeToggle(): void {
-  let saved: string | null = null;
-  try { saved = localStorage.getItem("mceliece-gate-theme"); } catch { /* storage unavailable */ }
-  if (saved === "dark" || saved === "light") {
-    document.documentElement.setAttribute("data-theme", saved);
-  }
-
   const btn = document.getElementById("theme-toggle");
   if (!btn) return;
 
-  function updateLabel(): void {
+  function updateButton(): void {
     const current = getEffectiveTheme();
-    const labelEl = document.getElementById("theme-label");
     const iconSpan = btn!.querySelector("span[aria-hidden]");
-    if (labelEl) labelEl.textContent = current === "dark" ? "Light" : "Dark";
-    if (iconSpan) iconSpan.textContent = current === "dark" ? "\u2600\ufe0f" : "\u{1f319}";
+    if (iconSpan) iconSpan.textContent = current === "dark" ? "\u{1f319}" : "\u2600\ufe0f";
     btn!.setAttribute("aria-label", current === "dark" ? "Switch to light mode" : "Switch to dark mode");
   }
 
-  updateLabel();
+  updateButton();
 
   btn.addEventListener("click", () => {
     const next = getEffectiveTheme() === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
-    try { localStorage.setItem("mceliece-gate-theme", next); } catch { /* storage unavailable */ }
-    updateLabel();
+    try { localStorage.setItem("theme", next); } catch { /* storage unavailable */ }
+    updateButton();
   });
 }
 

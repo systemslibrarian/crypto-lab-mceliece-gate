@@ -160,6 +160,7 @@ img, svg { max-width: 100%; height: auto; }
 
 /* --- Header --------------------------------------------------- */
 .demo-header {
+  position: relative;
   padding: 1.5rem 0 1rem;
 }
 .header-top {
@@ -199,18 +200,17 @@ img, svg { max-width: 100%; height: auto; }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 44px;
-  min-height: 44px;
-  padding: 0.5rem 0.75rem;
+  width: 2.6rem;
+  height: 2.6rem;
+  padding: 0;
   background: var(--bg-surface);
   color: var(--text);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 50%;
   cursor: pointer;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: 1.25rem;
+  line-height: 1;
   font-family: var(--font-sans);
-  gap: 0.375rem;
   transition: background var(--transition), border-color var(--transition);
 }
 .theme-toggle:hover {

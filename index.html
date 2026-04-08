@@ -8,6 +8,12 @@
       content="Classic McEliece browser demo: binary Goppa codes, key-size tradeoffs, and KEM + AES-256-GCM flow."
     />
     <title>crypto-lab-mceliece-gate</title>
+    <script>
+      (function () {
+        const saved = localStorage.getItem('theme');
+        document.documentElement.setAttribute('data-theme', saved ?? 'dark');
+      })();
+    </script>
   </head>
   <body>
     <a class="skip-link" href="#main-content">Skip to content</a>
