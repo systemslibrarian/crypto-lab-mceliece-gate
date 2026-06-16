@@ -5,7 +5,6 @@ import {
   encryptMessage,
   generateKeypair,
   toHex,
-  type SimulatedKeypair,
   type McElieceParams
 } from "./mceliece";
 import { COMPARISON_ROWS, formatCycles } from "./compare";
@@ -23,7 +22,7 @@ import {
 } from "./toy/goppa-code";
 import { encapsulate, decapsulate, type ToyEncapsulation } from "./toy/toy-kem";
 import { toNibble } from "./toy/gf16";
-import type { Poly } from "./toy/poly";
+import { polyEval, type Poly } from "./toy/poly";
 
 /* ======================================================================
    Helpers
@@ -84,6 +83,49 @@ function renderBitVector(bits: number[], errors: Set<number> = new Set()): strin
   const errSummary = errPositions.length ? `, errors at positions ${errPositions.join(", ")}` : "";
   const label = `${bits.length}-bit vector ${bits.join("")}${errSummary}`;
   return `<div class="bit-vector" role="img" aria-label="${label}">${cells}</div>`;
+}
+
+/**
+ * Editable ciphertext: each bit is a real button so the learner can
+ * inject or clear errors. aria-pressed marks bits that differ from the
+ * clean codeword (i.e. current errors).
+ */
+function renderEditableCiphertext(channel: number[], codeword: number[]): string {
+  const cells = channel
+    .map((b, i) => {
+      const isErr = b !== codeword[i];
+      const cls = `bit-cell bit-btn${b ? " one" : ""}${isErr ? " flipped" : ""}`;
+      return `<button type="button" class="${cls}" data-bit="${i}" aria-pressed="${isErr}" aria-label="ciphertext bit ${i}, value ${b}${isErr ? ", error — activate to clear" : " — activate to flip"}">${b}</button>`;
+    })
+    .join("");
+  return `<div class="bit-vector editable" role="group" aria-label="Ciphertext — activate a bit to add or remove an error">${cells}</div>`;
+}
+
+/** σ(z) evaluated over the whole support set — roots are the error positions. */
+function renderSigmaTable(code: ToyGoppaCode, sigma: Poly): string {
+  const rows = code.support
+    .map((a, i) => {
+      const v = polyEval(sigma, a);
+      const root = v === 0;
+      return `<tr class="${root ? "row-root" : ""}">
+        <th scope="row">${i}</th>
+        <td>${toNibble(a)}</td>
+        <td>${toNibble(v)}</td>
+        <td>${root ? "✓ error" : "—"}</td>
+      </tr>`;
+    })
+    .join("");
+  return `
+  <details class="sigma-details">
+    <summary>Show σ(z) evaluated over every support element α<sub>i</sub> — this is how the trapdoor locates errors</summary>
+    <div class="table-wrap" role="region" aria-label="Error locator evaluated over the support set" tabindex="0">
+      <table class="sigma-table">
+        <caption class="sr-only">σ(z) evaluated at each support element; zero values mark error positions</caption>
+        <thead><tr><th scope="col">i</th><th scope="col">α<sub>i</sub></th><th scope="col">σ(α<sub>i</sub>)</th><th scope="col">root?</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </details>`;
 }
 
 /** Large binary matrices are decorative; the card heading describes them. */
@@ -265,10 +307,10 @@ function renderPanel3(code: ToyGoppaCode): string {
         <span class="step-number" aria-hidden="true">1</span>
         <span class="step-title">Encapsulation (Alice)</span>
       </div>
-      <p>Sample a random ${code.k}-bit message and a weight-${code.t} error vector, then form the ciphertext <code>C = m·G ⊕ e</code>.</p>
+      <p>Sample a random ${code.k}-bit message and a weight-${code.t} error vector, then form the ciphertext <code>C = m·G ⊕ e</code>. After encapsulating you can <strong>tap any ciphertext bit</strong> to inject or clear errors yourself and watch how decoding responds.</p>
       <div class="btn-row">
         <button id="btn-encap" class="btn btn-primary" type="button" aria-label="Run encapsulation">Encapsulate</button>
-        <button id="btn-tamper" class="btn btn-secondary" type="button" disabled aria-label="Inject an extra error to exceed the correction radius">Tamper (add 3rd error)</button>
+        <button id="btn-tamper" class="btn btn-secondary" type="button" disabled aria-label="Inject one extra random error to exceed the correction radius">Add random error</button>
       </div>
       <div id="out-encap" class="output-area" aria-label="Encapsulation output"></div>
     </div>
@@ -573,25 +615,60 @@ function initPanel3(code: ToyGoppaCode): void {
     clearOut("out-aes");
   };
 
+  const currentWeight = (): number =>
+    enc ? channel.reduce((acc, bit, i) => acc + (bit !== enc!.codeword[i] ? 1 : 0), 0) : 0;
+
+  /** Update just the live weight readout + over-radius warning, no re-render. */
+  const refreshWeight = (): void => {
+    const weight = currentWeight();
+    const w = q<HTMLSpanElement>("ct-weight");
+    if (w) w.textContent = String(weight);
+    const warn = q<HTMLParagraphElement>("ct-warn");
+    if (warn) warn.hidden = weight <= code.t;
+  };
+
   const renderEncap = (): void => {
     if (!enc) return;
-    const errorSet = new Set<number>();
-    channel.forEach((bit, i) => { if (bit !== enc!.codeword[i]) errorSet.add(i); });
-    const tamperNote = tampered
-      ? `<p class="inline-warn" role="note">⚠ Tampered: ${errorSet.size} errors now exceed the t=${code.t} correction radius — decoding should fail or produce the wrong secret.</p>`
-      : "";
     show("out-encap", `
       <p><strong>Random message m (${code.k} bits):</strong></p>
       ${renderBitVector(enc.message)}
       <p><strong>Codeword m·G (${code.n} bits):</strong></p>
       ${renderBitVector(enc.codeword)}
       <p><strong>Error vector e:</strong> weight ${enc.errorPositions.length}, positions [${enc.errorPositions.join(", ")}]</p>
-      <p><strong>Ciphertext C = m·G ⊕ e</strong> (flipped bits highlighted):</p>
-      ${renderBitVector(channel, errorSet)}
-      ${tamperNote}
+      <p><strong>Ciphertext C = m·G ⊕ e</strong> — tap any bit to add or remove an error:</p>
+      ${renderEditableCiphertext(channel, enc.codeword)}
+      <p class="panel-note">Current error weight: <strong id="ct-weight">${currentWeight()}</strong> / correction radius t = ${code.t}.</p>
+      <p class="inline-warn" id="ct-warn" role="note"${currentWeight() <= code.t ? " hidden" : ""}>⚠ Error weight exceeds t = ${code.t}: Patterson decoding should now fail or produce the wrong secret.</p>
       <p><strong>Alice's shared secret K<sub>A</sub>:</strong> <span class="result-mono">${secretHex(enc.sharedSecret)}</span></p>
     `);
   };
+
+  /** Toggle one ciphertext bit in place (preserves keyboard focus). */
+  const toggleBit = (i: number, btn: HTMLButtonElement): void => {
+    if (!enc) return;
+    channel[i] ^= 1;
+    const bit = channel[i];
+    const isErr = bit !== enc.codeword[i];
+    btn.textContent = String(bit);
+    btn.classList.toggle("one", bit === 1);
+    btn.classList.toggle("flipped", isErr);
+    btn.setAttribute("aria-pressed", String(isErr));
+    btn.setAttribute(
+      "aria-label",
+      `ciphertext bit ${i}, value ${bit}${isErr ? ", error — activate to clear" : " — activate to flip"}`
+    );
+    tampered = true;
+    refreshWeight();
+    resetDownstream();
+    setStatus(`Bit ${i} toggled. Error weight is now ${currentWeight()}.`);
+  };
+
+  // Delegate clicks on the editable ciphertext bits.
+  const outEncap = q<HTMLDivElement>("out-encap");
+  outEncap?.addEventListener("click", (ev) => {
+    const target = (ev.target as HTMLElement)?.closest<HTMLButtonElement>("button[data-bit]");
+    if (target) toggleBit(Number(target.dataset.bit), target);
+  });
 
   // Step 1: Encapsulate
   btnEncap.addEventListener("click", async () => {
@@ -647,6 +724,7 @@ function initPanel3(code: ToyGoppaCode): void {
         ${trace.R ? `<p><strong>R(z) = √(T+z) mod g:</strong> <span class="result-mono">${polyStr(trace.R)}</span></p>` : ""}
         <p><strong>Error locator σ(z):</strong> <span class="result-mono">${polyStr(trace.sigma)}</span></p>
         <p><strong>Located error positions (roots of σ):</strong> [${trace.errorPositions.join(", ")}]</p>
+        ${trace.errorPositions.length ? renderSigmaTable(code, trace.sigma) : ""}
         <p><strong>Corrected codeword:</strong></p>
         ${renderBitVector(trace.corrected, correctedSet)}
         <p><strong>Recovered message:</strong></p>

@@ -49,8 +49,32 @@ describe("UI integration (jsdom)", () => {
     await waitFor(() => (document.getElementById("out-decap")?.textContent ?? "").includes("K_A == K_B"));
 
     expect(document.getElementById("out-decap")?.textContent).toContain("σ(z)");
+    // The σ-root table is rendered when errors were located.
+    expect(document.querySelector("#out-decap .sigma-table")).not.toBeNull();
+    expect(document.querySelectorAll("#out-decap .sigma-table .row-root").length).toBeGreaterThan(0);
     // AES step unlocks on a successful match.
     expect((document.getElementById("btn-encrypt") as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("lets the learner toggle a ciphertext bit, updating weight and aria-pressed", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    (document.getElementById("btn-encap") as HTMLButtonElement).click();
+    await waitFor(() => document.querySelector("#out-encap .bit-btn") !== null);
+
+    const weightBefore = Number(document.getElementById("ct-weight")?.textContent);
+    // Find a bit that is not currently an error (aria-pressed=false) and click it.
+    const fresh = document.querySelector<HTMLButtonElement>('#out-encap .bit-btn[aria-pressed="false"]');
+    expect(fresh).not.toBeNull();
+    fresh!.click();
+
+    expect(fresh!.getAttribute("aria-pressed")).toBe("true");
+    expect(Number(document.getElementById("ct-weight")?.textContent)).toBe(weightBefore + 1);
+    // Toggling resets the downstream decapsulate step.
+    expect((document.getElementById("btn-encrypt") as HTMLButtonElement).disabled).toBe(true);
   });
 
   it("escapes HTML metacharacters in rendered output", async () => {
