@@ -275,6 +275,24 @@ img, svg { max-width: 100%; height: auto; }
   color: var(--warning);
 }
 
+/* Inline content links — themed for AA contrast (UA default blue fails). */
+.disclosure a,
+.why-matters a,
+.panel p a,
+.panel li a,
+.callout a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.disclosure a:hover,
+.why-matters a:hover,
+.panel p a:hover,
+.panel li a:hover,
+.callout a:hover {
+  text-decoration: none;
+}
+
 /* --- Panels --------------------------------------------------- */
 .panel {
   background: var(--bg-surface);

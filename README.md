@@ -49,7 +49,13 @@ npm install
 npm run dev      # Vite dev server
 npm test         # Vitest: GF(16) laws, exhaustive Patterson decode, KEM round-trip, DOM + XSS
 npm run build    # tsc --noEmit && vite build
+
+# Accessibility + responsive audit (requires: npx playwright install chromium)
+npm run preview  # in one terminal
+npm run a11y     # in another: axe-core WCAG 2.1 AA scan at 320px + desktop, screenshots to .a11y/
 ```
+
+The `a11y` audit passes with **0 serious/critical WCAG 2.1 AA violations** and **0 horizontal overflow** at a 320px viewport.
 
 The test suite exhaustively verifies that the toy Goppa code corrects **every**
 error pattern of weight ≤ t at every position, cross-checked against a
