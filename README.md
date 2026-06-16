@@ -22,14 +22,16 @@ Classic McEliece is a code-based, asymmetric post-quantum key encapsulation mech
 
 [https://systemslibrarian.github.io/crypto-lab-mceliece-gate/](https://systemslibrarian.github.io/crypto-lab-mceliece-gate/)
 
-The demo walks through the complete Classic McEliece KEM + AES-256-GCM flow in the browser. Users can generate an mceliece348864 keypair, run encapsulation and decapsulation step-by-step, and encrypt and decrypt a plaintext message using the recovered shared secret as an AES-256-GCM key. Additional panels visualize the binary Goppa code structure (generator, scramble, and permutation matrices), a scrollable hex dump of the full 261,120-byte public key, and a side-by-side comparison of Classic McEliece vs ML-KEM-512, BIKE-1, and HQC-128 across key size, ciphertext size, and benchmark cycles.
+The demo runs a **real binary Goppa code over GF(2⁴)** in the browser — not a hash-based stand-in. You can watch a message get encoded, have a weight-`t` error injected (highlighted bit-by-bit), and then see **real Patterson decoding** locate and correct the errors via the live syndrome polynomial `S(z)`, its inverse, the square root, and the error locator `σ(z)`. A "tamper" control adds an extra error to push past the correction radius and watch decoding fail, and an attacker panel contrasts the trapdoor holder's polynomial-time decode against exponential brute-force syndrome decoding. The recovered shared secret then keys AES-256-GCM end-to-end. Surrounding panels show the exact NIST key sizes (a scrollable hex dump of the 261,120-byte public key), and a side-by-side comparison of Classic McEliece vs ML-KEM-512, BIKE-1, and HQC-128.
+
+See **[LIMITATIONS.md](LIMITATIONS.md)** for a precise breakdown of what is cryptographically real versus simulated.
 
 ## What Can Go Wrong
 
 - **Key reuse across encapsulations:** each encapsulation samples a fresh random error vector; reusing a keypair is safe, but implementations that cache or reuse the error vector break IND-CCA2 security immediately.
 - **Public key substitution (no binding to identity):** Classic McEliece KEMs do not authenticate the public key — an attacker who can substitute their own key performs a classic MitM. Key infrastructure (certificates, pre-shared fingerprints) must bind the public key to an identity.
 - **Parameter set downgrade:** mceliece348864 targets NIST Level 1 (~143-bit classical, ~128-bit quantum). Protocol negotiation that allows fallback to smaller (non-standard) parameters undermines the security claim.
-- **Simulation disclosure — this demo is not production McEliece:** the cryptographic operations use pedagogical simulation for browser interactivity; key sizes and security properties are exact per the NIST standard, but the code does not implement the Patterson decoding algorithm or the full NIST KEM API.
+- **Teaching model — this demo is not production McEliece:** the interactive code runs a genuine binary Goppa code with real Patterson decoding, but at toy GF(2⁴) parameters (n=16, k=8, t=2) so it is breakable by hand. It is not constant-time, does not implement the full NIST KEM API (implicit rejection / KDF), and the production-scale key bytes shown in Panel 2 are simulated at the exact standardized size. See [LIMITATIONS.md](LIMITATIONS.md).
 - **Memory exposure of a 261 KB private key:** the private key material is large and long-lived; insecure memory handling (logging, serialization to localStorage, XHR transmission) exposes the trapdoor on any system that touches it.
 
 ## Real-World Usage
@@ -39,6 +41,20 @@ The demo walks through the complete Classic McEliece KEM + AES-256-GCM flow in t
 - **PQCRYPTO EU project:** recommended Classic McEliece as the conservative KEM of choice in its 2015 post-quantum migration guidance for high-value data.
 - **Open Quantum Safe (liboqs):** the liboqs library ships Classic McEliece reference and optimized implementations used in research, TLS experimentation (via OQS-OpenSSL), and government pilot deployments.
 - **German BSI technical guidance (TR-02102-1):** the German Federal Office for Information Security lists Classic McEliece as an approved post-quantum KEM for long-term data protection use cases.
+
+## Local Development
+
+```bash
+npm install
+npm run dev      # Vite dev server
+npm test         # Vitest: GF(16) laws, exhaustive Patterson decode, KEM round-trip, DOM + XSS
+npm run build    # tsc --noEmit && vite build
+```
+
+The test suite exhaustively verifies that the toy Goppa code corrects **every**
+error pattern of weight ≤ t at every position, cross-checked against a
+brute-force syndrome oracle, plus a jsdom integration test that drives the full
+encapsulate → decapsulate flow. CI runs typecheck + tests before every deploy.
 
 ## Related Demos
 

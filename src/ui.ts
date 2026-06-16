@@ -1,10 +1,7 @@
-import { buildToyGoppaVisual } from "./goppa";
 import {
   CLASSIC_MCELIECE_PARAMS,
-  decapsulate,
-  decryptMessage,
   deriveAesKey,
-  encapsulate,
+  decryptMessage,
   encryptMessage,
   generateKeypair,
   toHex,
@@ -18,6 +15,15 @@ import {
   formatBytes,
   proportion
 } from "./keysize";
+import {
+  buildToyGoppaCode,
+  bruteForceSyndromeDecode,
+  syndromeSearchSpace,
+  type ToyGoppaCode
+} from "./toy/goppa-code";
+import { encapsulate, decapsulate, type ToyEncapsulation } from "./toy/toy-kem";
+import { toNibble } from "./toy/gf16";
+import type { Poly } from "./toy/poly";
 
 /* ======================================================================
    Helpers
@@ -46,14 +52,61 @@ function schemeTag(name: string): string {
   return "default";
 }
 
+/** Render a polynomial over GF(16) as HTML, e.g. z<sup>2</sup> + z + a. */
+function polyStr(p: Poly): string {
+  const terms: string[] = [];
+  for (let i = p.length - 1; i >= 0; i -= 1) {
+    const c = p[i];
+    if (c === 0) continue;
+    if (i === 0) {
+      terms.push(toNibble(c));
+    } else {
+      const z = i === 1 ? "z" : `z<sup>${i}</sup>`;
+      terms.push(c === 1 ? z : `${toNibble(c)}${z}`);
+    }
+  }
+  return terms.length ? terms.join(" + ") : "0";
+}
+
+/**
+ * Bit vector as a row of cells. Exposed to assistive tech as a single
+ * image with a concise summary rather than N announced digits.
+ */
+function renderBitVector(bits: number[], errors: Set<number> = new Set()): string {
+  const cells = bits
+    .map((b, i) => {
+      const flipped = errors.has(i);
+      const cls = `bit-cell${b ? " one" : ""}${flipped ? " flipped" : ""}`;
+      return `<span class="${cls}" aria-hidden="true">${b}</span>`;
+    })
+    .join("");
+  const errPositions = [...errors].sort((a, b) => a - b);
+  const errSummary = errPositions.length ? `, errors at positions ${errPositions.join(", ")}` : "";
+  const label = `${bits.length}-bit vector ${bits.join("")}${errSummary}`;
+  return `<div class="bit-vector" role="img" aria-label="${label}">${cells}</div>`;
+}
+
+/** Large binary matrices are decorative; the card heading describes them. */
+function renderBinMatrix(rows: number[][]): string {
+  return rows.map((r) => r.join("")).join("\n");
+}
+
+function renderGFMatrix(rows: number[][]): string {
+  return rows.map((r) => r.map(toNibble).join(" ")).join("\n");
+}
+
+function secretHex(secret: Uint8Array, bytes = 8): string {
+  return `${toHex(secret.slice(0, bytes))}…`;
+}
+
 /* ======================================================================
-   HTML builders — each returns an HTML string
+   HTML builders
    ====================================================================== */
 
 function renderHeader(): string {
   const isDark = getEffectiveTheme() === "dark";
   const label = isDark ? "Switch to light mode" : "Switch to dark mode";
-  const icon = isDark ? "\u{1f319}" : "\u2600\ufe0f";
+  const icon = isDark ? "\u{1f319}" : "☀️";
   return `
   <header class="demo-header" aria-label="Demo header">
     <button id="theme-toggle" class="theme-toggle" type="button"
@@ -62,7 +115,7 @@ function renderHeader(): string {
       <span class="category-chip">Post-Quantum KEM</span>
     </div>
     <h1>McEliece Gate</h1>
-    <p class="subtitle">Classic McEliece in the browser — binary Goppa structure, massive keys, and conservative post-quantum assurance.</p>
+    <p class="subtitle">Classic McEliece in the browser — a real binary Goppa code you can watch encode, break, and decode, alongside the real-world key sizes.</p>
   </header>`;
 }
 
@@ -71,6 +124,7 @@ function renderChips(): string {
   <div class="primitive-chips" aria-label="Cryptographic primitives used">
     <span class="chip">Classic McEliece</span>
     <span class="chip">Binary Goppa</span>
+    <span class="chip">Patterson decoding</span>
     <span class="chip">AES-256-GCM</span>
     <span class="chip">Code-Based</span>
   </div>`;
@@ -82,51 +136,50 @@ function renderWhyMatters(): string {
     <h2>Why This Matters</h2>
     <p>46 years of unbroken cryptanalysis make Classic McEliece the most conservative post-quantum choice available. The key size is the price of that confidence.</p>
     <div class="disclosure" role="note">
-      <strong>Illustrative — not production Classic McEliece.</strong> Parameter sets, key sizes, and security properties are exact per the NIST PQC standard. The cryptographic operations use pedagogical simulation for browser interactivity.
+      <strong>What is real here:</strong> the interactive code in Panel&nbsp;1 and Panel&nbsp;3 is a genuine binary Goppa code over GF(2<sup>4</sup>) with real Patterson decoding — only the parameters are toy-sized so each step is visible. Panel&nbsp;2 uses the exact NIST key sizes (with simulated bytes) to convey real-world scale. This is a teaching model, not a production Classic McEliece implementation — see <a href="https://github.com/systemslibrarian/crypto-lab-mceliece-gate/blob/main/LIMITATIONS.md">LIMITATIONS.md</a>.
     </div>
   </section>`;
 }
 
-/* --- Panel 1: Binary Goppa Codes ------------------------------ */
+/* --- Panel 1: Binary Goppa Codes (live) ----------------------- */
 
-function renderPanel1(): string {
-  const g = buildToyGoppaVisual();
+function renderPanel1(code: ToyGoppaCode): string {
   return `
   <section class="panel" id="panel-1" aria-labelledby="p1-title">
-    <h2 class="panel-title" id="p1-title">1. Binary Goppa Codes and the McEliece Construction</h2>
+    <h2 class="panel-title" id="p1-title">1. Binary Goppa Codes and the McEliece Trapdoor</h2>
 
-    <p><strong>Error-correcting codes</strong> encode data so that even if errors are introduced, the original message can be recovered. Binary Goppa codes are a family of algebraic codes defined over GF(2<sup>m</sup>) by an irreducible Goppa polynomial g(z).</p>
+    <p><strong>Error-correcting codes</strong> encode data so that even if errors are introduced, the original message can be recovered. Binary Goppa codes are a family of algebraic codes defined over GF(2<sup>m</sup>) by an irreducible Goppa polynomial g(z). Their algebraic structure is the <em>trapdoor</em>: the holder of (L, g) can correct up to <code>t</code> errors in polynomial time; everyone else sees a seemingly random linear code.</p>
 
     <h3 class="panel-subtitle">The McEliece Construction</h3>
-    <p>The public key is formed as: <code>G<sub>pub</sub> = S &middot; G<sub>goppa</sub> &middot; P</code></p>
-    <p>The scramble matrix <strong>S</strong> and permutation matrix <strong>P</strong> disguise the structured Goppa generator matrix so the public code looks like a random linear code. An attacker who can only see G<sub>pub</sub> faces the problem of decoding a random linear code — known to be NP-hard.</p>
-
-    <h3 class="panel-subtitle">Security Assumption</h3>
-    <p>Hardness of <strong>syndrome decoding</strong> on random binary linear codes (McEliece 1978; Niederreiter 1986). The best known attacks — information-set decoding — remain exponential in complexity.</p>
+    <p>The public key is formed as <code>G<sub>pub</sub> = S &middot; G<sub>goppa</sub> &middot; P</code>. The scramble matrix <strong>S</strong> and permutation matrix <strong>P</strong> hide the structured Goppa generator so the public code looks random. An attacker who sees only G<sub>pub</sub> faces decoding a random linear code — <strong>syndrome decoding</strong>, known to be NP-hard (McEliece 1978; Niederreiter 1986). The best known attacks (information-set decoding) remain exponential.</p>
 
     <div class="callout">46 years without a practical break — the most battle-tested post-quantum proposal in existence.</div>
 
-    <h3 class="panel-subtitle">Toy Visualization (GF(2<sup>4</sup>))</h3>
-    <p class="panel-note">Below is a pedagogical toy example over GF(16) illustrating the matrix structures. Real Classic McEliece uses GF(2<sup>12</sup>) or GF(2<sup>13</sup>) with thousands of columns.</p>
+    <h3 class="panel-subtitle">This Page's Live Toy Code — GF(2<sup>4</sup>), n=${code.n}, k=${code.k}, t=${code.t}</h3>
+    <p class="panel-note">Everything below is computed in your browser by the same code that powers Panel&nbsp;3. Real Classic McEliece uses GF(2<sup>12</sup>)/GF(2<sup>13</sup>) with thousands of columns; the structure is identical.</p>
 
-    <div class="matrix-grid" aria-label="Toy matrix visualization">
-      <div class="matrix-card" aria-label="Generator matrix G">
-        <h4>Generator G</h4>
-        <pre>${g.generatorMatrix.join("\n")}</pre>
-      </div>
-      <div class="matrix-card" aria-label="Scramble matrix S">
-        <h4>Scramble S</h4>
-        <pre>${g.scrambleMatrix.join("\n")}</pre>
-      </div>
-      <div class="matrix-card" aria-label="Permutation matrix P">
-        <h4>Permutation P</h4>
-        <pre>${g.permutationMatrix.join("\n")}</pre>
-      </div>
+    <div class="param-grid">
+      <div class="param-item"><span class="param-key">Field</span><span class="param-val">GF(2<sup>4</sup>) = GF(16), prim. poly z<sup>4</sup>+z+1</span></div>
+      <div class="param-item"><span class="param-key">Support set L</span><span class="param-val mono">[${code.support.map(toNibble).join(", ")}]</span></div>
+      <div class="param-item"><span class="param-key">Goppa poly g(z)</span><span class="param-val mono">${polyStr(code.g)}</span></div>
+      <div class="param-item"><span class="param-key">Corrects</span><span class="param-val">t = ${code.t} errors (min. distance ≥ ${2 * code.t + 1})</span></div>
     </div>
 
-    <p><strong>Support set L</strong> = [${g.supportSet.join(", ")}]<br>
-    <strong>Goppa polynomial g(z)</strong> coefficients = [${g.goppaPolynomial.join(", ")}]<br>
-    <strong>Syndrome sample</strong> = [${g.syndromeVector.join(", ")}]</p>
+    <div class="matrix-grid" aria-label="Live matrices of the toy Goppa code">
+      <div class="matrix-card">
+        <h4>Parity-check H over GF(16) — ${code.t}×${code.n}</h4>
+        <pre aria-hidden="true">${renderGFMatrix(code.parityGF)}</pre>
+      </div>
+      <div class="matrix-card">
+        <h4>Binary H — ${code.parityBin.length}×${code.n}</h4>
+        <pre aria-hidden="true">${renderBinMatrix(code.parityBin)}</pre>
+      </div>
+      <div class="matrix-card">
+        <h4>Generator G — ${code.k}×${code.n}</h4>
+        <pre aria-hidden="true">${renderBinMatrix(code.generator)}</pre>
+      </div>
+    </div>
+    <p class="panel-note">H is shown as hex nibbles (each GF(16) element is 4 bits). Each generator row is a codeword: <code>H&middot;G<sup>T</sup> = 0</code>. The public key in real McEliece is a scrambled version of <strong>G</strong>; the private key is <strong>(L, g)</strong>.</p>
   </section>`;
 }
 
@@ -169,7 +222,7 @@ function renderKemBars(): string {
 function renderPanel2(): string {
   return `
   <section class="panel" id="panel-2" aria-labelledby="p2-title">
-    <h2 class="panel-title" id="p2-title">2. The Key Size Problem (Make It Visceral)</h2>
+    <h2 class="panel-title" id="p2-title">2. The Key Size Problem (Real Parameters)</h2>
 
     <p>The smallest Classic McEliece parameter set — <strong>mceliece348864</strong> (NIST Level 1) — has a <strong>261,120-byte</strong> public key. That is 255 KB for one public key.</p>
 
@@ -186,7 +239,7 @@ function renderPanel2(): string {
     </ul>
 
     <h3 class="panel-subtitle">Public Key Hex Dump</h3>
-    <p>A live hex dump of the first 8 KB of a generated mceliece348864 public key. Scroll to feel the scale.</p>
+    <p>A live hex dump of the first 8 KB of a generated mceliece348864 public key (simulated bytes at the exact standardized size). Scroll to feel the scale.</p>
     <label for="pk-hex" class="sr-only">Public key hex dump (first 8192 bytes)</label>
     <textarea id="pk-hex" class="hex-dump" readonly aria-label="Public key hex dump, first 8192 bytes">Generating…</textarea>
 
@@ -194,53 +247,56 @@ function renderPanel2(): string {
   </section>`;
 }
 
-/* --- Panel 3: Encapsulation / Decapsulation ------------------- */
+/* --- Panel 3: The toy KEM, working ---------------------------- */
 
-function renderPanel3(): string {
+function renderPanel3(code: ToyGoppaCode): string {
   return `
   <section class="panel" id="panel-3" aria-labelledby="p3-title">
-    <h2 class="panel-title" id="p3-title">3. Encapsulation and Decapsulation</h2>
+    <h2 class="panel-title" id="p3-title">3. Encapsulation &amp; Decapsulation (Live Toy KEM)</h2>
+
+    <p>This runs the <strong>real Goppa code from Panel&nbsp;1</strong> as a key-encapsulation mechanism. Alice picks a random message <code>m</code> and a weight-${code.t} error <code>e</code>, sends <code>C = m·G ⊕ e</code>, and the shared secret is <code>SHA-256(m ‖ e)</code>. Bob's trapdoor (L, g) lets him Patterson-decode <code>C</code> and recover the same secret. An attacker cannot.</p>
 
     <div id="aria-live-status" class="aria-status" role="status" aria-live="polite"></div>
     <div id="error-status" class="error-status" role="alert" aria-live="assertive"></div>
 
-    <!-- Step 1: Keygen -->
-    <div class="step" id="step-keygen">
-      <div class="step-header">
-        <span class="step-number" aria-hidden="true">1</span>
-        <span class="step-title">Key Generation</span>
-      </div>
-      <p>Generate a Classic McEliece keypair using the <strong>mceliece348864</strong> parameter set (n=3488, k=2720, t=64).</p>
-      <div class="btn-row">
-        <button id="btn-keygen" class="btn btn-primary" type="button" aria-label="Generate Classic McEliece keypair">Generate Keypair</button>
-      </div>
-      <div id="out-keygen" class="output-area" aria-label="Key generation output"></div>
-    </div>
-
-    <!-- Step 2: Encapsulation -->
+    <!-- Step 1: Encapsulation -->
     <div class="step" id="step-encap">
       <div class="step-header">
-        <span class="step-number" aria-hidden="true">2</span>
+        <span class="step-number" aria-hidden="true">1</span>
         <span class="step-title">Encapsulation (Alice)</span>
       </div>
-      <p>Alice samples an error vector <strong>e</strong> of weight t=${CLASSIC_MCELIECE_PARAMS[0].t} and computes a ciphertext. The ciphertext is tiny: only <strong>${CLASSIC_MCELIECE_PARAMS[0].ciphertextBytes} bytes</strong> despite the enormous public key.</p>
+      <p>Sample a random ${code.k}-bit message and a weight-${code.t} error vector, then form the ciphertext <code>C = m·G ⊕ e</code>.</p>
       <div class="btn-row">
-        <button id="btn-encap" class="btn btn-primary" type="button" disabled aria-label="Encapsulate shared secret">Encapsulate</button>
+        <button id="btn-encap" class="btn btn-primary" type="button" aria-label="Run encapsulation">Encapsulate</button>
+        <button id="btn-tamper" class="btn btn-secondary" type="button" disabled aria-label="Inject an extra error to exceed the correction radius">Tamper (add 3rd error)</button>
       </div>
       <div id="out-encap" class="output-area" aria-label="Encapsulation output"></div>
     </div>
 
-    <!-- Step 3: Decapsulation -->
+    <!-- Step 2: Decapsulation -->
     <div class="step" id="step-decap">
       <div class="step-header">
-        <span class="step-number" aria-hidden="true">3</span>
-        <span class="step-title">Decapsulation (Bob)</span>
+        <span class="step-number" aria-hidden="true">2</span>
+        <span class="step-title">Decapsulation (Bob — has the trapdoor)</span>
       </div>
-      <p>Bob uses the private key (Patterson algorithm in production) to decode the Goppa code, recover the error vector, and derive the same shared secret.</p>
+      <p>Patterson's algorithm: build syndrome S(z), invert it, take a square root, split via the extended Euclidean algorithm, and form the error locator σ(z). Its roots are the error positions.</p>
       <div class="btn-row">
-        <button id="btn-decap" class="btn btn-primary" type="button" disabled aria-label="Decapsulate shared secret">Decapsulate</button>
+        <button id="btn-decap" class="btn btn-primary" type="button" disabled aria-label="Run Patterson decapsulation">Decapsulate</button>
       </div>
       <div id="out-decap" class="output-area" aria-label="Decapsulation output"></div>
+    </div>
+
+    <!-- Step 3: Attacker view -->
+    <div class="step" id="step-attack">
+      <div class="step-header">
+        <span class="step-number" aria-hidden="true">3</span>
+        <span class="step-title">Attacker (no trapdoor)</span>
+      </div>
+      <p>Without (L, g), the attacker must solve syndrome decoding on a code that looks random — searching error patterns by brute force. Feasible at toy size; exponential at real parameters.</p>
+      <div class="btn-row">
+        <button id="btn-attack" class="btn btn-secondary" type="button" disabled aria-label="Run brute-force syndrome decoding">Run brute-force attack</button>
+      </div>
+      <div id="out-attack" class="output-area" aria-label="Attacker output"></div>
     </div>
 
     <!-- Step 4: AES-256-GCM -->
@@ -249,7 +305,7 @@ function renderPanel3(): string {
         <span class="step-number" aria-hidden="true">4</span>
         <span class="step-title">AES-256-GCM Wrap (KEM + DEM)</span>
       </div>
-      <p>The shared secret is fed into AES-256-GCM to encrypt and decrypt a message end-to-end.</p>
+      <p>The recovered shared secret keys AES-256-GCM to encrypt and decrypt a message end-to-end.</p>
       <div class="input-group">
         <label for="aes-message">Message to encrypt</label>
         <textarea id="aes-message" rows="2">Classic McEliece: conservative post-quantum security since 1978.</textarea>
@@ -260,8 +316,6 @@ function renderPanel3(): string {
       </div>
       <div id="out-aes" class="output-area" aria-label="AES encryption and decryption output"></div>
     </div>
-
-    <p><strong>Note:</strong> The ciphertext is tiny (${CLASSIC_MCELIECE_PARAMS[0].ciphertextBytes} bytes) despite the enormous public key (${formatBytes(CLASSIC_MCELIECE_PARAMS[0].publicKeyBytes)}) — an asymmetric tradeoff unique to Classic McEliece.</p>
   </section>`;
 }
 
@@ -413,16 +467,16 @@ function renderFooter(): string {
    Layout Assembly
    ====================================================================== */
 
-function buildPage(): string {
+function buildPage(code: ToyGoppaCode): string {
   return `
   <div class="app-container">
     ${renderHeader()}
     ${renderChips()}
     ${renderWhyMatters()}
     <main id="main-content" tabindex="-1">
-      ${renderPanel1()}
+      ${renderPanel1(code)}
       ${renderPanel2()}
-      ${renderPanel3()}
+      ${renderPanel3(code)}
       ${renderPanel4()}
       ${renderPanel5()}
     </main>
@@ -442,7 +496,7 @@ function initThemeToggle(): void {
   function updateButton(): void {
     const current = getEffectiveTheme();
     const iconSpan = btn!.querySelector("span[aria-hidden]");
-    if (iconSpan) iconSpan.textContent = current === "dark" ? "\u{1f319}" : "\u2600\ufe0f";
+    if (iconSpan) iconSpan.textContent = current === "dark" ? "\u{1f319}" : "☀️";
     btn!.setAttribute("aria-label", current === "dark" ? "Switch to light mode" : "Switch to dark mode");
   }
 
@@ -468,6 +522,11 @@ function show(id: string, html: string): void {
   }
 }
 
+function clearOut(id: string): void {
+  const el = q<HTMLDivElement>(id);
+  if (el) { el.innerHTML = ""; el.classList.remove("visible"); }
+}
+
 function setStatus(text: string): void {
   const s = q<HTMLDivElement>("aria-live-status");
   if (s) s.textContent = text;
@@ -478,115 +537,166 @@ function setError(text: string): void {
   if (s) s.textContent = text;
 }
 
-async function initPanel2(params: McElieceParams): Promise<SimulatedKeypair> {
-  setStatus("Generating mceliece348864 keypair for key size visualization…");
+async function initPanel2(params: McElieceParams): Promise<void> {
+  setStatus("Generating mceliece348864 public key for the size visualization…");
   const keypair = await generateKeypair(params);
   const hex = toHex(keypair.publicKey.slice(0, 8192), true);
   const hexArea = q<HTMLTextAreaElement>("pk-hex");
   if (hexArea) hexArea.value = hex;
-  setStatus(`Keypair generated. Public key: ${params.publicKeyBytes.toLocaleString()} bytes.`);
-  return keypair;
+  setStatus(`Public key generated: ${params.publicKeyBytes.toLocaleString()} bytes.`);
 }
 
-function initPanel3(params: McElieceParams, initialKeypair: SimulatedKeypair): void {
-  const btnKeygen = q<HTMLButtonElement>("btn-keygen");
+function initPanel3(code: ToyGoppaCode): void {
   const btnEncap = q<HTMLButtonElement>("btn-encap");
+  const btnTamper = q<HTMLButtonElement>("btn-tamper");
   const btnDecap = q<HTMLButtonElement>("btn-decap");
+  const btnAttack = q<HTMLButtonElement>("btn-attack");
   const btnEncrypt = q<HTMLButtonElement>("btn-encrypt");
   const btnDecrypt = q<HTMLButtonElement>("btn-decrypt");
+  if (!btnEncap || !btnTamper || !btnDecap || !btnAttack || !btnEncrypt || !btnDecrypt) return;
 
-  if (!btnKeygen || !btnEncap || !btnDecap || !btnEncrypt || !btnDecrypt) return;
-
-  let keypair: SimulatedKeypair = initialKeypair;
-  let aliceSecret: Uint8Array | null = null;
-  let bobSecret: Uint8Array | null = null;
+  let enc: ToyEncapsulation | null = null;
+  let channel: number[] = []; // what Bob receives (possibly tampered)
+  let tampered = false;
   let aesKey: CryptoKey | null = null;
   let encryptedData: { iv: Uint8Array; ciphertext: Uint8Array } | null = null;
 
-  // Step 1: Keygen
-  btnKeygen.addEventListener("click", async () => {
-    btnKeygen.disabled = true;
-    setError("");
-    setStatus("Generating keypair…");
-    try {
-      keypair = await generateKeypair(params);
-      show("out-keygen", `
-        <p><strong>Parameter set:</strong> ${params.name} (${params.level})</p>
-        <p><strong>n =</strong> ${params.n}, <strong>k =</strong> ${params.k}, <strong>t =</strong> ${params.t}</p>
-        <p><strong>Public key:</strong> ${params.publicKeyBytes.toLocaleString()} bytes (${formatBytes(params.publicKeyBytes)})</p>
-        <p><strong>Private key trapdoor seed:</strong> <span class="result-mono">${toHex(keypair.privateKey.trapdoorSeed.slice(0, 16))}…</span></p>
-      `);
-      btnEncap.disabled = false;
-      btnDecap.disabled = true;
-      btnEncrypt.disabled = true;
-      btnDecrypt.disabled = true;
-      aliceSecret = null;
-      bobSecret = null;
-      aesKey = null;
-      encryptedData = null;
-      // Clear stale output from previous runs
-      for (const id of ["out-encap", "out-decap", "out-aes"]) {
-        const el = q<HTMLDivElement>(id);
-        if (el) { el.innerHTML = ""; el.classList.remove("visible"); }
-      }
-      setStatus("Keypair generated. Proceed to encapsulation.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Keygen failed");
-    } finally {
-      btnKeygen.disabled = false;
-    }
-  });
+  const resetDownstream = (): void => {
+    btnDecap.disabled = false;
+    btnAttack.disabled = true;
+    btnEncrypt.disabled = true;
+    btnDecrypt.disabled = true;
+    aesKey = null;
+    encryptedData = null;
+    clearOut("out-decap");
+    clearOut("out-attack");
+    clearOut("out-aes");
+  };
 
-  // Step 2: Encapsulation
+  const renderEncap = (): void => {
+    if (!enc) return;
+    const errorSet = new Set<number>();
+    channel.forEach((bit, i) => { if (bit !== enc!.codeword[i]) errorSet.add(i); });
+    const tamperNote = tampered
+      ? `<p class="inline-warn" role="note">⚠ Tampered: ${errorSet.size} errors now exceed the t=${code.t} correction radius — decoding should fail or produce the wrong secret.</p>`
+      : "";
+    show("out-encap", `
+      <p><strong>Random message m (${code.k} bits):</strong></p>
+      ${renderBitVector(enc.message)}
+      <p><strong>Codeword m·G (${code.n} bits):</strong></p>
+      ${renderBitVector(enc.codeword)}
+      <p><strong>Error vector e:</strong> weight ${enc.errorPositions.length}, positions [${enc.errorPositions.join(", ")}]</p>
+      <p><strong>Ciphertext C = m·G ⊕ e</strong> (flipped bits highlighted):</p>
+      ${renderBitVector(channel, errorSet)}
+      ${tamperNote}
+      <p><strong>Alice's shared secret K<sub>A</sub>:</strong> <span class="result-mono">${secretHex(enc.sharedSecret)}</span></p>
+    `);
+  };
+
+  // Step 1: Encapsulate
   btnEncap.addEventListener("click", async () => {
     btnEncap.disabled = true;
     setError("");
-    setStatus("Encapsulating shared secret…");
+    setStatus("Encapsulating…");
     try {
-      const result = await encapsulate(params, keypair.publicKey);
-      aliceSecret = result.sharedSecret;
-      const posPreview = result.errorVectorPositions.slice(0, 12).join(", ");
-      const more = result.errorVectorPositions.length > 12 ? " …" : "";
-      show("out-encap", `
-        <p><strong>Ciphertext size:</strong> ${params.ciphertextBytes} bytes</p>
-        <p><strong>Ciphertext:</strong> <span class="result-mono">${toHex(result.ciphertext.slice(0, 48))}…</span></p>
-        <p><strong>Error vector weight:</strong> ${result.errorVectorPositions.length} positions</p>
-        <p><strong>Sample positions:</strong> ${posPreview}${more}</p>
-        <p><strong>Alice shared secret:</strong> <span class="result-mono">${toHex(result.sharedSecret.slice(0, 16))}…</span></p>
-      `);
-      // Store ciphertext for decap
-      (keypair as SimulatedKeypair & { _ct?: Uint8Array })._ct = result.ciphertext;
-      btnDecap.disabled = false;
-      setStatus("Encapsulation complete. Proceed to decapsulation.");
+      enc = await encapsulate(code);
+      channel = enc.ciphertext.slice();
+      tampered = false;
+      renderEncap();
+      btnTamper.disabled = false;
+      resetDownstream();
+      setStatus(`Encapsulated. ${enc.errorPositions.length} errors injected. Proceed to decapsulation.`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Encapsulation failed");
+    } finally {
       btnEncap.disabled = false;
     }
   });
 
-  // Step 3: Decapsulation
+  // Step 1b: Tamper — flip one extra bit
+  btnTamper.addEventListener("click", () => {
+    if (!enc) return;
+    setError("");
+    const buf = new Uint32Array(1);
+    crypto.getRandomValues(buf);
+    let pos = buf[0] % code.n;
+    // prefer a position not already an error, to actually raise the weight
+    const isError = (i: number): boolean => channel[i] !== enc!.codeword[i];
+    let guard = 0;
+    while (isError(pos) && guard < code.n) { pos = (pos + 1) % code.n; guard += 1; }
+    channel[pos] ^= 1;
+    tampered = true;
+    renderEncap();
+    resetDownstream();
+    setStatus("Ciphertext tampered: an extra error now exceeds the correction radius.");
+  });
+
+  // Step 2: Decapsulate (Patterson)
   btnDecap.addEventListener("click", async () => {
+    if (!enc) return;
     btnDecap.disabled = true;
     setError("");
-    setStatus("Decapsulating shared secret…");
+    setStatus("Running Patterson decoding…");
     try {
-      const ct = (keypair as SimulatedKeypair & { _ct?: Uint8Array })._ct;
-      if (!ct) throw new Error("No ciphertext — run encapsulation first.");
-      bobSecret = await decapsulate(keypair, ct);
-      const match = aliceSecret !== null && toHex(aliceSecret) === toHex(bobSecret);
+      const { trace, sharedSecret } = await decapsulate(code, channel);
+      const match = trace.success && toHex(sharedSecret) === toHex(enc.sharedSecret);
+      const correctedSet = new Set<number>(trace.errorPositions);
       show("out-decap", `
-        <p><strong>Bob shared secret:</strong> <span class="result-mono">${toHex(bobSecret.slice(0, 16))}…</span></p>
-        <p><strong>Secrets match:</strong> <span class="match-badge ${match ? "success" : "fail"}" aria-label="Shared secrets ${match ? "match" : "do not match"}">${match ? "✓ K_Alice == K_Bob" : "✗ Mismatch"}</span></p>
+        <p><strong>Syndrome S(z) = Σ 1/(z−α<sub>i</sub>):</strong> <span class="result-mono">${polyStr(trace.syndrome)}</span></p>
+        ${trace.T ? `<p><strong>T(z) = S(z)<sup>−1</sup> mod g:</strong> <span class="result-mono">${polyStr(trace.T)}</span></p>` : ""}
+        ${trace.R ? `<p><strong>R(z) = √(T+z) mod g:</strong> <span class="result-mono">${polyStr(trace.R)}</span></p>` : ""}
+        <p><strong>Error locator σ(z):</strong> <span class="result-mono">${polyStr(trace.sigma)}</span></p>
+        <p><strong>Located error positions (roots of σ):</strong> [${trace.errorPositions.join(", ")}]</p>
+        <p><strong>Corrected codeword:</strong></p>
+        ${renderBitVector(trace.corrected, correctedSet)}
+        <p><strong>Recovered message:</strong></p>
+        ${renderBitVector(trace.message)}
+        <p><strong>Bob's shared secret K<sub>B</sub>:</strong> <span class="result-mono">${secretHex(sharedSecret)}</span></p>
+        <p><strong>Result:</strong> <span class="match-badge ${match ? "success" : "fail"}" aria-label="Shared secrets ${match ? "match" : "do not match"}">${match ? "✓ K_A == K_B" : "✗ Decoding failed / secrets differ"}</span></p>
       `);
+      btnAttack.disabled = false;
       if (match) {
-        aesKey = await deriveAesKey(bobSecret);
+        aesKey = await deriveAesKey(sharedSecret);
         btnEncrypt.disabled = false;
+        setStatus("Decapsulation succeeded. Shared secrets match.");
+      } else {
+        btnEncrypt.disabled = true;
+        setStatus("Decapsulation did not reproduce Alice's secret — expected when errors exceed t.");
       }
-      setStatus(match ? "Shared secrets match. Proceed to AES-256-GCM." : "Shared secret mismatch.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Decapsulation failed");
+      // Patterson can throw on undecodable input (>t errors): that is itself the lesson.
+      show("out-decap", `
+        <p><strong>Result:</strong> <span class="match-badge fail">✗ Undecodable — more than t=${code.t} errors</span></p>
+        <p>Patterson decoding cannot resolve an error vector beyond the correction radius, so no valid shared secret is produced.</p>
+      `);
+      btnAttack.disabled = false;
+      btnEncrypt.disabled = true;
+      setStatus("Decoding failed: errors exceeded the correction radius.");
+    } finally {
       btnDecap.disabled = false;
     }
+  });
+
+  // Step 3: Attacker brute force
+  btnAttack.addEventListener("click", () => {
+    if (!enc) return;
+    setError("");
+    setStatus("Running brute-force syndrome decoding…");
+    const result = bruteForceSyndromeDecode(code, channel);
+    const toySpace = syndromeSearchSpace(code.n, code.t);
+    const realN = 3488;
+    const realT = 64;
+    const realSpace = syndromeSearchSpace(realN, realT);
+    const realExp = Math.round(Math.log2(realSpace));
+    show("out-attack", `
+      ${result
+        ? `<p><strong>Brute force found:</strong> positions [${result.errorPositions.join(", ")}] after trying <strong>${result.searchSpace.toLocaleString()}</strong> patterns.</p>`
+        : `<p><strong>Brute force found no weight-≤${code.t} solution</strong> (consistent with a tampered, undecodable ciphertext).</p>`}
+      <p>Toy search space (weight ≤ ${code.t}, n=${code.n}): <strong>${toySpace.toLocaleString()}</strong> patterns — trivial.</p>
+      <p>Real mceliece348864 (weight ≤ ${realT}, n=${realN}): <strong>≈ 2<sup>${realExp}</sup></strong> patterns — infeasible. The trapdoor turns this into a handful of field operations.</p>
+      <div class="callout"><strong>That gap is the cryptosystem.</strong> Bob's (L, g) makes decoding polynomial; the attacker faces exponential syndrome decoding.</div>
+    `);
+    setStatus("Attacker comparison complete.");
   });
 
   // Step 4a: Encrypt
@@ -595,7 +705,7 @@ function initPanel3(params: McElieceParams, initialKeypair: SimulatedKeypair): v
     setError("");
     const msg = q<HTMLTextAreaElement>("aes-message")?.value ?? "";
     if (!msg) { setError("Enter a message to encrypt."); btnEncrypt.disabled = false; return; }
-    if (!aesKey) { setError("No AES key derived."); btnEncrypt.disabled = false; return; }
+    if (!aesKey) { setError("No AES key derived — decapsulate successfully first."); btnEncrypt.disabled = false; return; }
     setStatus("Encrypting with AES-256-GCM…");
     try {
       encryptedData = await encryptMessage(aesKey, msg);
@@ -605,7 +715,7 @@ function initPanel3(params: McElieceParams, initialKeypair: SimulatedKeypair): v
         <p><strong>Ciphertext length:</strong> ${encryptedData.ciphertext.length} bytes</p>
       `);
       btnDecrypt.disabled = false;
-      setStatus("Encrypted. Click Decrypt to verify round-trip.");
+      setStatus("Encrypted. Click Decrypt to verify the round-trip.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Encryption failed");
     } finally {
@@ -623,12 +733,11 @@ function initPanel3(params: McElieceParams, initialKeypair: SimulatedKeypair): v
       const plaintext = await decryptMessage(aesKey, encryptedData.iv, encryptedData.ciphertext);
       const outEl = q<HTMLDivElement>("out-aes");
       if (outEl) {
-        // Append decrypted output safely using textContent for user-originated text
         const p = document.createElement("p");
         const strong = document.createElement("strong");
         strong.textContent = "Decrypted: ";
         const span = document.createElement("span");
-        span.textContent = plaintext;
+        span.textContent = plaintext; // user-originated text — set safely
         p.appendChild(strong);
         p.appendChild(span);
         outEl.appendChild(p);
@@ -647,11 +756,10 @@ function initPanel3(params: McElieceParams, initialKeypair: SimulatedKeypair): v
    ====================================================================== */
 
 export async function initUi(root: HTMLElement): Promise<void> {
-  root.innerHTML = buildPage();
+  const code = buildToyGoppaCode();
+  root.innerHTML = buildPage(code);
 
   initThemeToggle();
-
-  const params = CLASSIC_MCELIECE_PARAMS[0]; // mceliece348864
-  const keypair = await initPanel2(params);
-  initPanel3(params, keypair);
+  initPanel3(code);
+  await initPanel2(CLASSIC_MCELIECE_PARAMS[0]); // mceliece348864 hex dump
 }
