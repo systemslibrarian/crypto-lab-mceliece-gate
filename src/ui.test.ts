@@ -3,9 +3,13 @@ import { describe, it, expect, beforeAll, beforeEach } from "vitest";
 import { webcrypto } from "node:crypto";
 
 beforeAll(() => {
-  // jsdom lacks SubtleCrypto; use Node's WebCrypto for SHA-256 / AES-GCM.
-  if (!globalThis.crypto?.subtle) {
+  // Deterministically use Node's WebCrypto for SHA-256 / AES-GCM rather than
+  // whatever the jsdom/Node combo exposes (which varies across CI runners).
+  try {
     Object.defineProperty(globalThis, "crypto", { value: webcrypto, configurable: true });
+  } catch {
+    /* already non-configurable; the source passes ArrayBufferViews, which
+       SubtleCrypto accepts cross-realm, so this is fine. */
   }
 });
 

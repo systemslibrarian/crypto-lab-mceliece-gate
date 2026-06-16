@@ -62,8 +62,16 @@ function concatBytes(...arrays: Uint8Array[]): Uint8Array {
   return out;
 }
 
-function toArrayBuffer(data: Uint8Array): ArrayBuffer {
-  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
+/**
+ * Pass the typed-array view straight to WebCrypto. SubtleCrypto accepts
+ * any ArrayBufferView, and `ArrayBuffer.isView` is realm-agnostic — a bare
+ * ArrayBuffer would fail a cross-realm `instanceof` check (e.g. jsdom's
+ * SubtleCrypto against a Node ArrayBuffer).
+ */
+function toArrayBuffer(data: Uint8Array): BufferSource {
+  // Cast needed only because lib.dom's BufferSource pins the backing buffer to
+  // ArrayBuffer; the runtime value is a plain ArrayBufferView either way.
+  return data as unknown as BufferSource;
 }
 
 async function sha256(data: Uint8Array): Promise<Uint8Array> {

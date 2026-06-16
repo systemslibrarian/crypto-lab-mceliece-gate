@@ -33,12 +33,10 @@ export interface ToyDecapsulation {
   sharedSecret: Uint8Array;
 }
 
-function toArrayBuffer(data: Uint8Array): ArrayBuffer {
-  return data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer;
-}
-
 async function sha256(data: Uint8Array): Promise<Uint8Array> {
-  const digest = await crypto.subtle.digest("SHA-256", toArrayBuffer(data));
+  // Pass the view directly: ArrayBuffer.isView is realm-agnostic, whereas a
+  // bare ArrayBuffer fails a cross-realm instanceof check under jsdom.
+  const digest = await crypto.subtle.digest("SHA-256", data as unknown as BufferSource);
   return new Uint8Array(digest);
 }
 
