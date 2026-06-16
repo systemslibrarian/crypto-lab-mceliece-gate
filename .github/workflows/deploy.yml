@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -29,6 +30,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Test
+        run: npm test
+
       - name: Build
         run: npm run build
 
@@ -37,6 +44,8 @@ jobs:
           path: dist
 
   deploy:
+    # Only deploy from main; PRs run build + tests but do not publish.
+    if: github.ref == 'refs/heads/main'
     needs: build
     runs-on: ubuntu-latest
     environment:

@@ -275,6 +275,24 @@ img, svg { max-width: 100%; height: auto; }
   color: var(--warning);
 }
 
+/* Inline content links — themed for AA contrast (UA default blue fails). */
+.disclosure a,
+.why-matters a,
+.panel p a,
+.panel li a,
+.callout a {
+  color: var(--primary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.disclosure a:hover,
+.why-matters a:hover,
+.panel p a:hover,
+.panel li a:hover,
+.callout a:hover {
+  text-decoration: none;
+}
+
 /* --- Panels --------------------------------------------------- */
 .panel {
   background: var(--bg-surface);
@@ -384,6 +402,150 @@ code, .mono {
   overflow-x: auto;
   white-space: pre;
   margin: 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* --- Panel notes --------------------------------------------- */
+.panel-note {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
+/* --- Parameter grid (live code params) ----------------------- */
+.param-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.5rem;
+  margin: 1rem 0;
+}
+.param-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  padding: 0.625rem 0.75rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.param-key {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+.param-val {
+  font-size: 0.9375rem;
+  color: var(--text);
+}
+.param-val.mono {
+  font-family: var(--font-mono);
+  font-size: 0.875rem;
+  background: none;
+  padding: 0;
+  word-break: break-word;
+}
+
+/* --- Bit vectors (codewords / ciphertexts) ------------------- */
+.bit-vector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  margin: 0.375rem 0 0.75rem;
+}
+.bit-cell {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.25rem;
+  font-family: var(--font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--bg-surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.bit-cell.one {
+  color: var(--primary-text);
+  background: var(--primary);
+  border-color: var(--primary);
+}
+.bit-cell.flipped {
+  color: #fff;
+  background: var(--error);
+  border-color: var(--error);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--error) 35%, transparent);
+}
+
+/* Editable ciphertext bits (real buttons) */
+.bit-vector.editable { gap: 4px; }
+button.bit-btn {
+  min-width: 2rem;
+  height: 2rem;
+  cursor: pointer;
+  font-family: var(--font-mono);
+  transition: transform var(--transition), background var(--transition), box-shadow var(--transition);
+}
+button.bit-btn:hover {
+  border-color: var(--border-strong);
+}
+button.bit-btn:active {
+  transform: scale(0.92);
+}
+
+/* --- Sigma root table ---------------------------------------- */
+.sigma-details {
+  margin: 0.5rem 0 0.75rem;
+}
+.sigma-details summary {
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--primary);
+  padding: 0.375rem 0;
+}
+.sigma-details summary:hover { text-decoration: underline; }
+.sigma-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8125rem;
+  font-family: var(--font-mono);
+}
+.sigma-table th,
+.sigma-table td {
+  padding: 0.375rem 0.625rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.sigma-table thead th {
+  background: var(--bg-surface-alt);
+  position: sticky;
+  top: 0;
+  font-weight: 700;
+}
+.sigma-table .row-root {
+  background: var(--error-bg);
+}
+.sigma-table .row-root td,
+.sigma-table .row-root th {
+  color: var(--error);
+  font-weight: 700;
+}
+
+/* --- Inline warning note ------------------------------------- */
+.inline-warn {
+  background: var(--warning-bg);
+  border-left: 3px solid var(--warning);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8125rem;
+  color: var(--text);
+  margin: 0.5rem 0;
 }
 
 /* --- Bar Chart ------------------------------------------------ */
@@ -878,6 +1040,7 @@ code, .mono {
   .size-grid { grid-template-columns: 1fr 1fr; }
   .use-case-grid { grid-template-columns: 1fr 1fr; }
   .matrix-grid { grid-template-columns: repeat(3, 1fr); }
+  .param-grid { grid-template-columns: 1fr 1fr; }
   .step { padding: 1.25rem; }
 }
 
