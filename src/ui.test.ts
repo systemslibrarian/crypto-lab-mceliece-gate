@@ -56,8 +56,11 @@ describe("UI integration (jsdom)", () => {
     // The σ-root table is rendered when errors were located.
     expect(document.querySelector("#out-decap .sigma-table")).not.toBeNull();
     expect(document.querySelectorAll("#out-decap .sigma-table .row-root").length).toBeGreaterThan(0);
-    // AES step unlocks on a successful match.
-    expect((document.getElementById("btn-encrypt") as HTMLButtonElement).disabled).toBe(false);
+    // AES step unlocks on a successful match (enabled one tick after the
+    // success text renders, once deriveAesKey resolves — wait for it).
+    const encryptBtn = document.getElementById("btn-encrypt") as HTMLButtonElement;
+    await waitFor(() => encryptBtn.disabled === false);
+    expect(encryptBtn.disabled).toBe(false);
   });
 
   it("lets the learner toggle a ciphertext bit, updating weight and aria-pressed", async () => {
