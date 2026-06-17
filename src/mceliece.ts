@@ -101,8 +101,10 @@ export function toHex(data: Uint8Array, withSpaces = false): string {
 
 function chooseErrorPositions(weight: number, n: number): number[] {
   const selected = new Set<number>();
+  const buf = new Uint32Array(1);
   while (selected.size < weight) {
-    selected.add(Math.floor(Math.random() * n));
+    crypto.getRandomValues(buf);
+    selected.add(buf[0] % n);
   }
   return [...selected].sort((a, b) => a - b);
 }
