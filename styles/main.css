@@ -1050,3 +1050,8 @@ button.bit-btn:active {
   .panel { padding: 2rem; }
   .size-grid { grid-template-columns: repeat(3, 1fr); }
 }
+
+
+/* ═══ Accessibility: WCAG AA contrast overrides (auto-added) ═══ */
+[data-theme="dark"] .bit-cell.flipped { background-color: #cc4744; } /* was #ef5350 on #ffffff = 3.49:1 → 4.61:1 */
+[data-theme="light"] .bit-cell.flipped { background-color: #cc4744; } /* was #ef5350 on #ffffff = 3.49:1 → 4.61:1 */
