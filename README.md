@@ -1,10 +1,6 @@
 # crypto-lab-mceliece-gate
 
-**Live demo:** [https://systemslibrarian.github.io/crypto-lab-mceliece-gate/](https://systemslibrarian.github.io/crypto-lab-mceliece-gate/)
-
 `Classic McEliece` · `Binary Goppa` · `AES-256-GCM` · `Code-Based`
-
----
 
 ## What It Is
 
@@ -17,10 +13,11 @@ Classic McEliece is a code-based, asymmetric post-quantum key encapsulation mech
 - **Store-now / decrypt-later threat models:** adversaries recording today's ciphertext traffic to break it with future quantum hardware face no shortcut against McEliece's code-based hardness.
 - **Hybrid PQ deployments (code-based + lattice-based):** pairing McEliece with ML-KEM provides defense-in-depth against a break in either assumption class.
 - **Not for bandwidth-constrained TLS or IoT:** a 261 KB public key is prohibitive in handshake protocols or constrained devices — use ML-KEM (FIPS 203) instead.
+- **Do NOT treat this as production McEliece:** it is a teaching demo running a toy GF(2⁴) Goppa code, not constant-time, and not the full NIST KEM API.
 
 ## Live Demo
 
-[https://systemslibrarian.github.io/crypto-lab-mceliece-gate/](https://systemslibrarian.github.io/crypto-lab-mceliece-gate/)
+**[systemslibrarian.github.io/crypto-lab-mceliece-gate](https://systemslibrarian.github.io/crypto-lab-mceliece-gate/)**
 
 The demo runs a **real binary Goppa code over GF(2⁴)** in the browser — not a hash-based stand-in. You can watch a message get encoded, have a weight-`t` error injected (highlighted bit-by-bit), and then see **real Patterson decoding** locate and correct the errors via the live syndrome polynomial `S(z)`, its inverse, the square root, and the error locator `σ(z)`. A "tamper" control adds an extra error to push past the correction radius and watch decoding fail, and an attacker panel contrasts the trapdoor holder's polynomial-time decode against exponential brute-force syndrome decoding. The recovered shared secret then keys AES-256-GCM end-to-end. Surrounding panels show the exact NIST key sizes (a scrollable hex dump of the 261,120-byte public key), and a side-by-side comparison of Classic McEliece vs ML-KEM-512, BIKE-1, and HQC-128.
 
@@ -42,11 +39,26 @@ See **[LIMITATIONS.md](LIMITATIONS.md)** for a precise breakdown of what is cryp
 - **Open Quantum Safe (liboqs):** the liboqs library ships Classic McEliece reference and optimized implementations used in research, TLS experimentation (via OQS-OpenSSL), and government pilot deployments.
 - **German BSI technical guidance (TR-02102-1):** the German Federal Office for Information Security lists Classic McEliece as an approved post-quantum KEM for long-term data protection use cases.
 
-## Local Development
+## How to Run Locally
 
 ```bash
+git clone https://github.com/systemslibrarian/crypto-lab-mceliece-gate
+cd crypto-lab-mceliece-gate
 npm install
-npm run dev      # Vite dev server
+npm run dev
+```
+
+## Related Demos
+
+- [crypto-lab-bike-vault](https://systemslibrarian.github.io/crypto-lab-bike-vault/) — BIKE QC-MDPC code-based KEM.
+- [crypto-lab-hqc-vault](https://systemslibrarian.github.io/crypto-lab-hqc-vault/) — HQC code-based KEM with Reed-Muller/Reed-Solomon decoding.
+- [crypto-lab-kyber-vault](https://systemslibrarian.github.io/crypto-lab-kyber-vault/) — ML-KEM / Kyber lattice-based KEM for size comparison.
+- [crypto-lab-syndrome-drain](https://systemslibrarian.github.io/crypto-lab-syndrome-drain/) — decoding-failure and DOOM attacks on code-based schemes.
+- [crypto-lab-pq-families](https://systemslibrarian.github.io/crypto-lab-pq-families/) — overview of the lattice, code, hash, multivariate, and isogeny PQ families.
+
+## Testing & Accessibility
+
+```bash
 npm test         # Vitest: GF(16) laws, exhaustive Patterson decode, KEM round-trip, DOM + XSS
 npm run build    # tsc --noEmit && vite build
 
@@ -57,19 +69,10 @@ npm run a11y     # in another: axe-core WCAG 2.1 AA scan at 320px + desktop, scr
 
 The `a11y` audit passes with **0 serious/critical WCAG 2.1 AA violations** and **0 horizontal overflow** at a 320px viewport.
 
-The test suite exhaustively verifies that the toy Goppa code corrects **every**
-error pattern of weight ≤ t at every position, cross-checked against a
-brute-force syndrome oracle, plus a jsdom integration test that drives the full
-encapsulate → decapsulate flow. CI runs typecheck + tests before every deploy.
-
-## Related Demos
-
-- [crypto-lab-bike-vault](https://github.com/systemslibrarian/crypto-lab-bike-vault) — BIKE code-based KEM
-- [crypto-lab-hqc-vault](https://github.com/systemslibrarian/crypto-lab-hqc-vault) — HQC code-based KEM
-- [crypto-lab-kyber-vault](https://github.com/systemslibrarian/crypto-lab-kyber-vault) — ML-KEM / Kyber lattice-based KEM
-- [crypto-compare](https://github.com/systemslibrarian/crypto-compare) — Side-by-side KEM comparison dashboard
-- [crypto-lab](https://github.com/systemslibrarian/crypto-lab) — Landing page for the full crypto-lab collection
+The test suite exhaustively verifies that the toy Goppa code corrects **every** error pattern of weight ≤ t at every position, cross-checked against a brute-force syndrome oracle, plus a jsdom integration test that drives the full encapsulate → decapsulate flow. CI runs typecheck + tests before every deploy.
 
 ---
+
+*One of 60+ browser demos in the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
 
 *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*
