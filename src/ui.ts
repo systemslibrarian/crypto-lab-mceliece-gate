@@ -496,6 +496,13 @@ function renderCrossLinks(): string {
 function renderFooter(): string {
   return `
   <footer class="demo-footer" aria-label="Footer">
+    <p class="footer-related" aria-label="Related demos">Related demos:
+      <a href="https://systemslibrarian.github.io/crypto-lab-bike-vault/" class="badge-link" target="_blank" rel="noopener noreferrer" aria-label="Open crypto-lab-bike-vault">crypto-lab-bike-vault</a>
+      <a href="https://systemslibrarian.github.io/crypto-lab-hqc-vault/" class="badge-link" target="_blank" rel="noopener noreferrer" aria-label="Open crypto-lab-hqc-vault">crypto-lab-hqc-vault</a>
+      <a href="https://systemslibrarian.github.io/crypto-lab-kyber-vault/" class="badge-link" target="_blank" rel="noopener noreferrer" aria-label="Open crypto-lab-kyber-vault">crypto-lab-kyber-vault</a>
+      <a href="https://systemslibrarian.github.io/crypto-lab-syndrome-drain/" class="badge-link" target="_blank" rel="noopener noreferrer" aria-label="Open crypto-lab-syndrome-drain">crypto-lab-syndrome-drain</a>
+      <a href="https://systemslibrarian.github.io/crypto-lab-pq-families/" class="badge-link" target="_blank" rel="noopener noreferrer" aria-label="Open crypto-lab-pq-families">crypto-lab-pq-families</a>
+    </p>
     <p class="scripture">&ldquo;So whether you eat or drink or whatever you do, do it all for the glory of God.&rdquo; &mdash; 1 Corinthians 10:31</p>
     <a href="https://github.com/systemslibrarian/crypto-lab-mceliece-gate" class="github-badge"
        target="_blank" rel="noopener noreferrer" aria-label="View source on GitHub">
