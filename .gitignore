@@ -2,3 +2,6 @@ node_modules/
 dist/
 .DS_Store
 .a11y/
+/test-results/
+/playwright-report/
+/.pw-browsers/

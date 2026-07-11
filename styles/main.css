@@ -28,7 +28,7 @@
   --success-bg: #e8f5e9;
   --error: #c62828;
   --error-bg: #ffebee;
-  --warning: #e65100;
+  --warning: #b23800; /* darkened from #e65100 (3.46:1) to pass 4.5:1 as text on --warning-bg #fff3e0 */
   --warning-bg: #fff3e0;
   --border: #cfd0d8;
   --border-strong: #a0a0b8;

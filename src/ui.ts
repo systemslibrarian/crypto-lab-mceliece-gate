@@ -312,7 +312,7 @@ function renderPanel3(code: ToyGoppaCode): string {
         <button id="btn-encap" class="btn btn-primary" type="button" aria-label="Run encapsulation">Encapsulate</button>
         <button id="btn-tamper" class="btn btn-secondary" type="button" disabled aria-label="Inject one extra random error to exceed the correction radius">Add random error</button>
       </div>
-      <div id="out-encap" class="output-area" aria-label="Encapsulation output"></div>
+      <div id="out-encap" class="output-area" role="status" aria-live="polite" aria-label="Encapsulation output"></div>
     </div>
 
     <!-- Step 2: Decapsulation -->
@@ -325,7 +325,7 @@ function renderPanel3(code: ToyGoppaCode): string {
       <div class="btn-row">
         <button id="btn-decap" class="btn btn-primary" type="button" disabled aria-label="Run Patterson decapsulation">Decapsulate</button>
       </div>
-      <div id="out-decap" class="output-area" aria-label="Decapsulation output"></div>
+      <div id="out-decap" class="output-area" role="status" aria-live="polite" aria-label="Decapsulation output"></div>
     </div>
 
     <!-- Step 3: Attacker view -->
@@ -338,7 +338,7 @@ function renderPanel3(code: ToyGoppaCode): string {
       <div class="btn-row">
         <button id="btn-attack" class="btn btn-secondary" type="button" disabled aria-label="Run brute-force syndrome decoding">Run brute-force attack</button>
       </div>
-      <div id="out-attack" class="output-area" aria-label="Attacker output"></div>
+      <div id="out-attack" class="output-area" role="status" aria-live="polite" aria-label="Attacker output"></div>
     </div>
 
     <!-- Step 4: AES-256-GCM -->
@@ -356,7 +356,7 @@ function renderPanel3(code: ToyGoppaCode): string {
         <button id="btn-encrypt" class="btn btn-primary" type="button" disabled aria-label="Encrypt message with AES-256-GCM">Encrypt</button>
         <button id="btn-decrypt" class="btn btn-secondary" type="button" disabled aria-label="Decrypt ciphertext">Decrypt</button>
       </div>
-      <div id="out-aes" class="output-area" aria-label="AES encryption and decryption output"></div>
+      <div id="out-aes" class="output-area" role="status" aria-live="polite" aria-label="AES encryption and decryption output"></div>
     </div>
   </section>`;
 }
