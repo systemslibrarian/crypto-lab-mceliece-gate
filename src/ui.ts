@@ -150,14 +150,18 @@ function renderHeader(): string {
   const label = isDark ? "Switch to light mode" : "Switch to dark mode";
   const icon = isDark ? "\u{1f319}" : "☀️";
   return `
-  <header class="demo-header" aria-label="Demo header">
-    <button id="theme-toggle" class="theme-toggle" type="button"
-            aria-label="${label}" style="position: absolute; top: 0; right: 0"><span aria-hidden="true">${icon}</span></button>
-    <div class="header-top">
-      <span class="category-chip">Post-Quantum KEM</span>
+  <button id="theme-toggle" class="theme-toggle" type="button"
+          aria-label="${label}" style="position: absolute; top: 0; right: 0"><span aria-hidden="true">${icon}</span></button>
+  <header class="cl-hero">
+    <div class="cl-hero-main">
+      <h1 class="cl-hero-title">Classic McEliece</h1>
+      <p class="cl-hero-sub">Code-based KEM · Binary Goppa codes</p>
+      <p class="cl-hero-desc">Watch a real binary Goppa code encapsulate, break, and Patterson-decode in your browser, alongside the true NIST key sizes.</p>
     </div>
-    <h1>McEliece Gate</h1>
-    <p class="subtitle">Classic McEliece in the browser — a real binary Goppa code you can watch encode, break, and decode, alongside the real-world key sizes.</p>
+    <aside class="cl-hero-why" aria-label="Why it matters">
+      <span class="cl-hero-why-label">WHY IT MATTERS</span>
+      <p class="cl-hero-why-text">Its security has resisted 46 years of cryptanalysis with zero practical breaks, making it the most conservative post-quantum KEM for data that must stay secret for decades. The tradeoff is a public key hundreds of times larger than lattice schemes.</p>
+    </aside>
   </header>`;
 }
 
@@ -174,9 +178,7 @@ function renderChips(): string {
 
 function renderWhyMatters(): string {
   return `
-  <section class="why-matters" aria-label="Why this matters">
-    <h2>Why This Matters</h2>
-    <p>46 years of unbroken cryptanalysis make Classic McEliece the most conservative post-quantum choice available. The key size is the price of that confidence.</p>
+  <section class="why-matters" aria-label="What is real in this demo">
     <div class="disclosure" role="note">
       <strong>What is real here:</strong> the interactive code in Panel&nbsp;1 and Panel&nbsp;3 is a genuine binary Goppa code over GF(2<sup>4</sup>) with real Patterson decoding — only the parameters are toy-sized so each step is visible. Panel&nbsp;2 uses the exact NIST key sizes (with simulated bytes) to convey real-world scale. This is a teaching model, not a production Classic McEliece implementation — see <a href="https://github.com/systemslibrarian/crypto-lab-mceliece-gate/blob/main/LIMITATIONS.md">LIMITATIONS.md</a>.
     </div>
