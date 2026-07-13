@@ -17,6 +17,13 @@ and which are illustrative, so it can be trusted by a technical audience.
 - **The trapdoor gap.** The same ciphertext is decoded two ways: with `(L, g)`
   via Patterson (polynomial time) and without it via brute-force syndrome
   decoding (exponential). This is the actual security argument, demonstrated.
+- **Public-key scrambling `G_pub = S·G·P`.** `scrambleGenerator` builds a real
+  invertible binary `S` (a product of elementary row operations) and a real
+  column permutation `P`, then computes `S·G·P` live. Panel 1 lets you toggle
+  between the structured `G` Bob holds and the scrambled `G_pub` an attacker
+  sees, watching the systematic identity block dissolve. `S` is verified
+  invertible and every `G_pub` row is verified to remain a codeword of the
+  column-permuted code, so the demonstration is faithful, not cosmetic.
 - **AES-256-GCM.** The KEM + DEM wrap uses the browser's WebCrypto
   `crypto.subtle` — real AES-256-GCM, real SHA-256, real `getRandomValues`.
 - **NIST parameter sizes.** Every key/ciphertext size shown (e.g. the
@@ -36,9 +43,11 @@ and which are illustrative, so it can be trusted by a technical audience.
 - **Not the NIST KEM API.** No `crypto_kem_keypair/enc/dec` byte-exact I/O,
   no semantic-security transform (implicit rejection / KDF) as specified in the
   Classic McEliece submission.
-- **Scrambling (S, P) is described, not applied.** The toy generator is used
-  directly; the public-key scrambling `G_pub = S·G·P` is explained but not
-  performed, since at toy size it adds no pedagogical value.
+- **Scrambling is shown, but the live KEM decodes with the unscrambled code.**
+  Panel 1 now computes and displays a real `G_pub = S·G·P` (see the "Real"
+  list). The Panel 3 KEM still encapsulates against the structured generator so
+  the Patterson trace stays legible; a production KEM would encapsulate against
+  `G_pub` and Bob would undo `S` and `P` before decoding.
 
 ## For production
 

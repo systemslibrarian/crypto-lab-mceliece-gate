@@ -18,7 +18,9 @@ import {
   buildToyGoppaCode,
   bruteForceSyndromeDecode,
   syndromeSearchSpace,
-  type ToyGoppaCode
+  scrambleGenerator,
+  type ToyGoppaCode,
+  type ScrambledGenerator
 } from "./toy/goppa-code";
 import { encapsulate, decapsulate, type ToyEncapsulation } from "./toy/toy-kem";
 import { toNibble } from "./toy/gf16";
@@ -99,6 +101,28 @@ function renderEditableCiphertext(channel: number[], codeword: number[]): string
     })
     .join("");
   return `<div class="bit-vector editable" role="group" aria-label="Ciphertext — activate a bit to add or remove an error">${cells}</div>`;
+}
+
+/**
+ * One line of the Patterson chain with a plain-language "why this step"
+ * that expands on click. The math (the polynomial value) is always shown;
+ * the explanation is progressive disclosure so it serves newcomer and
+ * cryptographer alike without cluttering the trace.
+ */
+function renderPattersonStep(
+  labelHtml: string,
+  valueHtml: string,
+  whyShort: string,
+  whyLong: string
+): string {
+  return `
+  <div class="pstep">
+    <p class="pstep-line"><strong>${labelHtml}</strong> <span class="result-mono">${valueHtml}</span></p>
+    <details class="pstep-why">
+      <summary><span class="pstep-why-tag">why this step</span> ${whyShort}</summary>
+      <p>${whyLong}</p>
+    </details>
+  </div>`;
 }
 
 /** σ(z) evaluated over the whole support set — roots are the error positions. */
@@ -185,9 +209,85 @@ function renderWhyMatters(): string {
   </section>`;
 }
 
+/**
+ * A k×n binary matrix drawn as a grid of on/off cells so a learner can
+ * SEE structure (or its loss). Row weights are shown so the eye can track
+ * how row-mixing changes each row. Exposed to AT as one summarized image.
+ */
+function renderMatrixGrid(rows: number[][], label: string): string {
+  const cells = rows
+    .map(
+      (r) =>
+        `<div class="mgrid-row">${r
+          .map((b) => `<span class="mgrid-cell${b ? " on" : ""}" aria-hidden="true"></span>`)
+          .join("")}</div>`
+    )
+    .join("");
+  return `<div class="mgrid" role="img" tabindex="0" aria-label="${esc(label)}">${cells}</div>`;
+}
+
+/**
+ * S·G·P scrambling, shown for real. Renders the structured generator G that
+ * Bob holds and, on toggle, the scrambled public generator G_pub = S·G·P the
+ * attacker sees — with the intermediate S·G (row-mixed) available too. Every
+ * matrix here is genuinely computed by scrambleGenerator().
+ */
+function renderScrambleView(code: ToyGoppaCode, sc: ScrambledGenerator): string {
+  const onesG = code.generator.reduce((a, r) => a + r.reduce((x, b) => x + b, 0), 0);
+  const onesPub = sc.gPub.reduce((a, r) => a + r.reduce((x, b) => x + b, 0), 0);
+  return `
+  <div class="scramble" id="scramble-view">
+    <h3 class="panel-subtitle">Watch the structure dissolve: G<sub>pub</sub> = S · G · P</h3>
+    <p>This is the step that makes the public code <em>look random</em>. Bob's structured Goppa generator <strong>G</strong> is multiplied by a random invertible matrix <strong>S</strong> (which mixes the rows) and a permutation <strong>P</strong> (which shuffles the columns). The result <strong>G<sub>pub</sub></strong> spans the exact same code — so Bob can still decode — but its Goppa structure is no longer visible, so an attacker sees only a random-looking linear code. Both matrices below are computed live in your browser.</p>
+    <div class="scramble-toggle" role="group" aria-label="Choose which view of the generator to show">
+      <button type="button" class="seg-btn is-active" id="scramble-bob" aria-pressed="true">Bob sees: structured G</button>
+      <button type="button" class="seg-btn" id="scramble-mixed" aria-pressed="false">Step: S · G (rows mixed)</button>
+      <button type="button" class="seg-btn" id="scramble-atk" aria-pressed="false">Attacker sees: G<sub>pub</sub></button>
+    </div>
+    <div class="scramble-stage">
+      <div class="scramble-panel" id="scramble-figure">
+        ${renderMatrixGrid(code.generator, `Structured generator G, ${code.k} by ${code.n}, filled cells are ones`)}
+      </div>
+      <p class="scramble-caption" id="scramble-caption" aria-live="polite">
+        <strong>Structured G (${code.k}×${code.n}).</strong> Note the tidy identity block on the left — the systematic structure Bob's trapdoor relies on. Total set bits: ${onesG}.
+      </p>
+    </div>
+    <p class="panel-note">S is invertible, so multiplying by it only re-expresses the same set of codewords; P just relabels bit positions. Nothing is lost — the structure is <em>hidden</em>, not destroyed. That hiding is what forces the attacker into NP-hard syndrome decoding. (Attacker's G<sub>pub</sub> has ${onesPub} set bits — the tidy identity block is gone.)</p>
+  </div>`;
+}
+
+/* --- 30-second primer (newcomer on-ramp) ---------------------- */
+
+function renderPrimer(): string {
+  return `
+  <section class="primer" aria-labelledby="primer-title">
+    <h2 class="primer-title" id="primer-title">New here? 30-second primer</h2>
+    <p class="primer-lede">Four words do all the heavy lifting on this page. If you meet them for the first time here, read this once and the panels below will click.</p>
+    <dl class="primer-terms">
+      <div class="primer-term">
+        <dt>Error-correcting code</dt>
+        <dd>A way of adding structured redundancy to data so a few flipped bits can be detected <em>and repaired</em>. A <strong>codeword</strong> is a valid, on-the-grid message; anything a few bits off can be snapped back to the nearest codeword.</dd>
+      </div>
+      <div class="primer-term">
+        <dt>Syndrome</dt>
+        <dd>The fingerprint the parity check leaves when bits are wrong. Multiply a received vector by the parity-check matrix <code>H</code>: a clean codeword gives all zeros; errors give a non-zero pattern that <em>depends only on where the errors are</em>. That pattern is the syndrome — the clue you decode from.</dd>
+      </div>
+      <div class="primer-term">
+        <dt>Trapdoor</dt>
+        <dd>A computation that is easy one way and hard to reverse — unless you hold a secret. Here the secret is <code>(L, g)</code>: with it, repairing errors is fast; without it, you are stuck brute-forcing.</dd>
+      </div>
+      <div class="primer-term">
+        <dt>Why a random code is hard to decode</dt>
+        <dd>Finding the error pattern behind a syndrome, on a code with no visible structure, is <strong>syndrome decoding</strong> — proven NP-hard. McEliece hides the friendly Goppa structure so an attacker sees only a random-looking code and must search.</dd>
+      </div>
+    </dl>
+    <p class="primer-note"><strong>Reading the hex.</strong> The field here is <strong>GF(16)</strong>, so every value is one of 16 elements written as a single hex digit (a <em>nibble</em>): <code>0…9</code> then <code>a…f</code>. When you see <code>a</code> below it means the field element 10, not the letter A.</p>
+  </section>`;
+}
+
 /* --- Panel 1: Binary Goppa Codes (live) ----------------------- */
 
-function renderPanel1(code: ToyGoppaCode): string {
+function renderPanel1(code: ToyGoppaCode, sc: ScrambledGenerator): string {
   return `
   <section class="panel" id="panel-1" aria-labelledby="p1-title">
     <h2 class="panel-title" id="p1-title">1. Binary Goppa Codes and the McEliece Trapdoor</h2>
@@ -224,6 +324,8 @@ function renderPanel1(code: ToyGoppaCode): string {
       </div>
     </div>
     <p class="panel-note">H is shown as hex nibbles (each GF(16) element is 4 bits). Each generator row is a codeword: <code>H&middot;G<sup>T</sup> = 0</code>. The public key in real McEliece is a scrambled version of <strong>G</strong>; the private key is <strong>(L, g)</strong>.</p>
+
+    ${renderScrambleView(code, sc)}
   </section>`;
 }
 
@@ -518,14 +620,15 @@ function renderFooter(): string {
    Layout Assembly
    ====================================================================== */
 
-function buildPage(code: ToyGoppaCode): string {
+function buildPage(code: ToyGoppaCode, sc: ScrambledGenerator): string {
   return `
   <div class="app-container">
     ${renderHeader()}
     ${renderChips()}
     ${renderWhyMatters()}
     <main id="main-content" tabindex="-1">
-      ${renderPanel1(code)}
+      ${renderPrimer()}
+      ${renderPanel1(code, sc)}
       ${renderPanel2()}
       ${renderPanel3(code)}
       ${renderPanel4()}
@@ -595,6 +698,61 @@ async function initPanel2(params: McElieceParams): Promise<void> {
   const hexArea = q<HTMLTextAreaElement>("pk-hex");
   if (hexArea) hexArea.value = hex;
   setStatus(`Public key generated: ${params.publicKeyBytes.toLocaleString()} bytes.`);
+}
+
+/**
+ * Wire the structured/mixed/scrambled toggle in Panel 1. Re-renders the
+ * matrix grid and caption in place; the three views are the real G, S·G,
+ * and G_pub = S·G·P from scrambleGenerator().
+ */
+function initScrambleView(code: ToyGoppaCode, sc: ScrambledGenerator): void {
+  const bob = q<HTMLButtonElement>("scramble-bob");
+  const mixed = q<HTMLButtonElement>("scramble-mixed");
+  const atk = q<HTMLButtonElement>("scramble-atk");
+  const figure = q<HTMLDivElement>("scramble-figure");
+  const caption = q<HTMLParagraphElement>("scramble-caption");
+  if (!bob || !mixed || !atk || !figure || !caption) return;
+
+  const buttons = [bob, mixed, atk];
+  const ones = (m: number[][]): number =>
+    m.reduce((a, r) => a + r.reduce((x, b) => x + b, 0), 0);
+
+  const views = {
+    bob: {
+      btn: bob,
+      matrix: code.generator,
+      label: `Structured generator G, ${code.k} by ${code.n}`,
+      caption: `<strong>Structured G (${code.k}×${code.n}).</strong> Note the tidy identity block on the left — the systematic structure Bob's trapdoor relies on. Total set bits: ${ones(code.generator)}.`
+    },
+    mixed: {
+      btn: mixed,
+      matrix: sc.mixed,
+      label: `Row-mixed matrix S times G, ${code.k} by ${code.n}`,
+      caption: `<strong>S · G (rows mixed).</strong> Multiplying by the invertible S adds rows together, so the clean identity block is already gone — but the columns have not moved yet. Set bits: ${ones(sc.mixed)}.`
+    },
+    atk: {
+      btn: atk,
+      matrix: sc.gPub,
+      label: `Scrambled public generator G_pub, ${code.k} by ${code.n}`,
+      caption: `<strong>Attacker sees G<sub>pub</sub> = S · G · P.</strong> The permutation P has now shuffled the columns too. No identity block, no visible Goppa structure — just a random-looking code. This is the public key. Set bits: ${ones(sc.gPub)}.`
+    }
+  } as const;
+
+  const select = (key: keyof typeof views): void => {
+    const v = views[key];
+    buttons.forEach((b) => {
+      const active = b === v.btn;
+      b.classList.toggle("is-active", active);
+      b.setAttribute("aria-pressed", String(active));
+    });
+    figure.innerHTML = renderMatrixGrid(v.matrix, v.label);
+    caption.innerHTML = v.caption;
+    setStatus(v.label);
+  };
+
+  bob.addEventListener("click", () => select("bob"));
+  mixed.addEventListener("click", () => select("mixed"));
+  atk.addEventListener("click", () => select("atk"));
 }
 
 function initPanel3(code: ToyGoppaCode): void {
@@ -728,10 +886,31 @@ function initPanel3(code: ToyGoppaCode): void {
       const match = trace.success && toHex(sharedSecret) === toHex(enc.sharedSecret);
       const correctedSet = new Set<number>(trace.errorPositions);
       show("out-decap", `
-        <p><strong>Syndrome S(z) = Σ 1/(z−α<sub>i</sub>):</strong> <span class="result-mono">${polyStr(trace.syndrome)}</span></p>
-        ${trace.T ? `<p><strong>T(z) = S(z)<sup>−1</sup> mod g:</strong> <span class="result-mono">${polyStr(trace.T)}</span></p>` : ""}
-        ${trace.R ? `<p><strong>R(z) = √(T+z) mod g:</strong> <span class="result-mono">${polyStr(trace.R)}</span></p>` : ""}
-        <p><strong>Error locator σ(z):</strong> <span class="result-mono">${polyStr(trace.sigma)}</span></p>
+        <p class="pchain-intro">Patterson turns the errors into the <em>roots of a polynomial</em>. Each step below moves closer to a polynomial whose roots are exactly the error positions — open “why this step” to see what each transform buys you.</p>
+        ${renderPattersonStep(
+          "Syndrome S(z) = Σ 1/(z−α<sub>i</sub>):",
+          polyStr(trace.syndrome),
+          "the error's parity signature",
+          "S(z) is the syndrome expressed as a polynomial: it depends only on <em>where</em> the errors are, not on the message. It is the fingerprint the parity check leaves — everything that follows is extracting the error positions back out of this one polynomial."
+        )}
+        ${trace.T ? renderPattersonStep(
+          "T(z) = S(z)<sup>−1</sup> mod g:",
+          polyStr(trace.T),
+          "invert so errors become roots",
+          "Inverting the syndrome modulo the Goppa polynomial g(z) flips the problem inside-out: the error positions, which were poles of S, become things we can solve for as roots. This is the move that makes the trapdoor work — it needs g(z), which only the key holder has."
+        ) : ""}
+        ${trace.R ? renderPattersonStep(
+          "R(z) = √(T+z) mod g:",
+          polyStr(trace.R),
+          "factor the locator into a solvable size",
+          "Taking the square root of T(z)+z (a real operation in a characteristic-2 field) sets up a split via the extended Euclidean algorithm into two smaller polynomials α and β. Splitting keeps their degrees within the correction radius t, so the locator we build next is guaranteed solvable when there are ≤ t errors."
+        ) : ""}
+        ${renderPattersonStep(
+          "Error locator σ(z) = α² + z·β²:",
+          polyStr(trace.sigma),
+          "the polynomial whose roots ARE the error positions",
+          "This is the payoff. σ(z) is assembled from the split so that σ(α<sub>i</sub>) = 0 exactly at the support elements α<sub>i</sub> where an error occurred. Evaluate it across the support set (table below) and every zero points at a flipped bit — errors located, no searching required."
+        )}
         <p><strong>Located error positions (roots of σ):</strong> [${trace.errorPositions.join(", ")}]</p>
         ${trace.errorPositions.length ? renderSigmaTable(code, trace.sigma) : ""}
         <p><strong>Corrected codeword:</strong></p>
@@ -844,9 +1023,11 @@ function initPanel3(code: ToyGoppaCode): void {
 
 export async function initUi(root: HTMLElement): Promise<void> {
   const code = buildToyGoppaCode();
-  root.innerHTML = buildPage(code);
+  const scrambled = scrambleGenerator(code);
+  root.innerHTML = buildPage(code, scrambled);
 
   initThemeToggle();
+  initScrambleView(code, scrambled);
   initPanel3(code);
   await initPanel2(CLASSIC_MCELIECE_PARAMS[0]); // mceliece348864 hex dump
 }

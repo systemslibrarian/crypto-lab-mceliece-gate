@@ -63,6 +63,54 @@ describe("UI integration (jsdom)", () => {
     expect(encryptBtn.disabled).toBe(false);
   });
 
+  it("renders the primer and the S·G·P scramble toggle, and switching views changes the matrix", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    // Newcomer primer defines the four load-bearing terms.
+    const primer = document.getElementById("primer-title");
+    expect(primer).not.toBeNull();
+    const primerText = document.querySelector(".primer")?.textContent ?? "";
+    expect(primerText).toContain("Syndrome");
+    expect(primerText).toContain("Trapdoor");
+
+    // Scramble view is present with the three real views.
+    expect(document.getElementById("scramble-bob")).not.toBeNull();
+    const atk = document.getElementById("scramble-atk") as HTMLButtonElement;
+    expect(atk).not.toBeNull();
+
+    const figure = document.getElementById("scramble-figure") as HTMLDivElement;
+    const structuredHtml = figure.innerHTML;
+    // Switching to the attacker's G_pub must change the rendered matrix (it is
+    // a different, genuinely-scrambled matrix — not the same grid re-labelled).
+    atk.click();
+    expect(atk.getAttribute("aria-pressed")).toBe("true");
+    expect(figure.innerHTML).not.toBe(structuredHtml);
+    expect((document.getElementById("scramble-caption")?.textContent ?? "")).toContain("G");
+  });
+
+  it("annotates each Patterson step with a 'why this step' expander", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    (document.getElementById("btn-encap") as HTMLButtonElement).click();
+    await waitFor(() => (document.getElementById("out-encap")?.textContent ?? "").includes("shared secret"));
+    const decap = document.getElementById("btn-decap") as HTMLButtonElement;
+    await waitFor(() => decap.disabled === false);
+    decap.click();
+    await waitFor(() => (document.getElementById("out-decap")?.textContent ?? "").includes("σ(z)"));
+
+    // At least the syndrome + locator steps carry a why-this-step expander.
+    const whys = document.querySelectorAll("#out-decap .pstep-why");
+    expect(whys.length).toBeGreaterThanOrEqual(2);
+    const whyText = document.querySelector("#out-decap .pstep-why")?.textContent ?? "";
+    expect(whyText.toLowerCase()).toContain("why this step");
+  });
+
   it("lets the learner toggle a ciphertext bit, updating weight and aria-pressed", async () => {
     const { initUi } = await import("./ui");
     const root = document.createElement("div");

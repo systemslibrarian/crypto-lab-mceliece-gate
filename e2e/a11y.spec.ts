@@ -13,6 +13,22 @@ const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
  * scan sees all rendered content, and neutralize animations/opacity so nothing
  * is mid-transition when axe samples computed colors. */
 async function revealAll(page: Page): Promise<void> {
+  // Drive the KEM so the Patterson trace (with its "why this step" annotations)
+  // and the AES output are actually in the DOM when axe samples colors.
+  const encap = page.locator('#btn-encap');
+  if (await encap.count()) {
+    await encap.click();
+    const decap = page.locator('#btn-decap');
+    await decap.waitFor({ state: 'visible' });
+    await page.waitForFunction(() => {
+      const b = document.getElementById('btn-decap') as HTMLButtonElement | null;
+      return !!b && !b.disabled;
+    });
+    await decap.click();
+    await page.waitForFunction(() =>
+      (document.getElementById('out-decap')?.textContent ?? '').includes('σ(z)')
+    );
+  }
   await page.addStyleTag({
     content: `*,*::before,*::after{transition:none!important;animation:none!important}
       .output-area{display:block!important}`,

@@ -125,6 +125,98 @@ export function buildToyGoppaCode(): ToyGoppaCode {
   return { m, n, k, t, support, g, parityGF, parityBin, generator, infoColumns };
 }
 
+/* ================================================================
+   Public-key scrambling  G_pub = S · G · P
+   The whole reason the McEliece public code "looks random": the
+   structured Goppa generator G is mixed by an invertible binary
+   S (row operations) and a permutation P (column shuffle). Both are
+   real matrices here, computed at toy size so the structure visibly
+   dissolves. Bob keeps (S, P, L, g); the attacker sees only G_pub.
+   ================================================================ */
+
+export interface ScrambledGenerator {
+  /** k×k invertible binary scramble matrix S (row-mixer). */
+  S: number[][];
+  /** permutation of the n columns (P as a permutation array). */
+  perm: number[];
+  /** S·G — after row mixing, before the column permutation. */
+  mixed: number[][];
+  /** G_pub = S·G·P — the public generator an attacker sees. */
+  gPub: number[][];
+}
+
+/** Multiply two binary matrices over GF(2). */
+function binMatMul(a: number[][], b: number[][]): number[][] {
+  const rows = a.length;
+  const inner = b.length;
+  const cols = b[0].length;
+  const out: number[][] = [];
+  for (let i = 0; i < rows; i += 1) {
+    const row = new Array<number>(cols).fill(0);
+    for (let kk = 0; kk < inner; kk += 1) {
+      if (a[i][kk] === 1) {
+        for (let j = 0; j < cols; j += 1) row[j] ^= b[kk][j];
+      }
+    }
+    out.push(row);
+  }
+  return out;
+}
+
+/** A small deterministic PRNG so the scrambled view is stable per load. */
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/** Random invertible k×k binary matrix: build as a product of elementary
+ *  row operations on the identity, which is invertible by construction. */
+function randomInvertibleBinary(k: number, rng: () => number): number[][] {
+  const M: number[][] = Array.from({ length: k }, (_, i) =>
+    Array.from({ length: k }, (_, j) => (i === j ? 1 : 0))
+  );
+  // Apply many random row-additions r_i ^= r_j (i≠j); each is invertible.
+  const ops = k * k * 3;
+  for (let o = 0; o < ops; o += 1) {
+    const i = Math.floor(rng() * k);
+    let j = Math.floor(rng() * k);
+    if (i === j) j = (j + 1) % k;
+    for (let c = 0; c < k; c += 1) M[i][c] ^= M[j][c];
+  }
+  return M;
+}
+
+/** Fisher–Yates permutation of [0..n) using the seeded RNG. */
+function randomPermutation(n: number, rng: () => number): number[] {
+  const p = Array.from({ length: n }, (_, i) => i);
+  for (let i = n - 1; i > 0; i -= 1) {
+    const j = Math.floor(rng() * (i + 1));
+    [p[i], p[j]] = [p[j], p[i]];
+  }
+  return p;
+}
+
+/**
+ * Compute G_pub = S · G · P for the toy code with real, deterministic
+ * S (invertible) and P (permutation). This is the actual McEliece
+ * public-key construction, performed (not merely described) at a size
+ * where the loss of visible structure is watchable.
+ */
+export function scrambleGenerator(code: ToyGoppaCode, seed = 0x9e3779b9): ScrambledGenerator {
+  const rng = mulberry32(seed);
+  const S = randomInvertibleBinary(code.k, rng);
+  const perm = randomPermutation(code.n, rng);
+  const mixed = binMatMul(S, code.generator); // S·G  (k×n)
+  const gPub = mixed.map((row) => perm.map((src) => row[src])); // (S·G)·P
+  return { S, perm, mixed, gPub };
+}
+
 /** Encode a k-bit message into an n-bit codeword: c = message · G. */
 export function encode(code: ToyGoppaCode, message: number[]): number[] {
   if (message.length !== code.k) {

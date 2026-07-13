@@ -15,7 +15,8 @@ import {
   extractMessage,
   binarySyndrome,
   pattersonDecode,
-  bruteForceSyndromeDecode
+  bruteForceSyndromeDecode,
+  scrambleGenerator
 } from "./goppa-code";
 
 describe("GF(16) field laws", () => {
@@ -159,5 +160,54 @@ describe("toy Goppa code", () => {
     expect(polyEval(sigma, code.support[2])).toBe(0);
     expect(polyEval(sigma, code.support[11])).toBe(0);
     expect(polyEval(sigma, code.support[5])).not.toBe(0);
+  });
+});
+
+describe("public-key scrambling G_pub = S·G·P", () => {
+  const code = buildToyGoppaCode();
+
+  it("is deterministic for a fixed seed and shaped k×n", () => {
+    const a = scrambleGenerator(code, 123);
+    const b = scrambleGenerator(code, 123);
+    expect(a.gPub).toEqual(b.gPub);
+    expect(a.gPub.length).toBe(code.k);
+    expect(a.gPub.every((r) => r.length === code.n)).toBe(true);
+  });
+
+  it("uses a genuine permutation P (a bijection on the n columns)", () => {
+    const { perm } = scrambleGenerator(code, 7);
+    expect([...perm].sort((x, y) => x - y)).toEqual(
+      Array.from({ length: code.n }, (_, i) => i)
+    );
+  });
+
+  it("S is invertible over GF(2) (row space preserved ⇒ same code)", () => {
+    // rank(S) === k iff S is invertible; check via RREF pivot count.
+    const { S } = scrambleGenerator(code, 42);
+    const work = S.map((r) => r.slice());
+    let rank = 0;
+    for (let col = 0; col < code.k && rank < code.k; col += 1) {
+      let piv = -1;
+      for (let i = rank; i < code.k; i += 1) if (work[i][col] === 1) { piv = i; break; }
+      if (piv === -1) continue;
+      [work[rank], work[piv]] = [work[piv], work[rank]];
+      for (let i = 0; i < code.k; i += 1) {
+        if (i !== rank && work[i][col] === 1) {
+          for (let j = 0; j < code.k; j += 1) work[i][j] ^= work[rank][j];
+        }
+      }
+      rank += 1;
+    }
+    expect(rank).toBe(code.k);
+  });
+
+  it("every G_pub row is a codeword of the column-permuted Goppa code", () => {
+    // Un-permuting a G_pub row must land back in the null space of H_bin.
+    const { gPub, perm } = scrambleGenerator(code, 99);
+    for (const row of gPub) {
+      const unpermuted = new Array<number>(code.n).fill(0);
+      perm.forEach((src, dst) => { unpermuted[src] = row[dst]; });
+      expect(binarySyndrome(code, unpermuted).every((b) => b === 0)).toBe(true);
+    }
   });
 });
