@@ -4,7 +4,7 @@
 
 ## What It Is
 
-Classic McEliece is a code-based, asymmetric post-quantum key encapsulation mechanism (KEM) first proposed by Robert McEliece in 1978 and standardized by NIST in 2024. It encodes a random error vector into a public-key ciphertext using binary Goppa codes over GF(2^m), and relies on the NP-hardness of syndrome decoding on random binary linear codes as its security foundation. Unlike lattice-based KEMs, its security assumption has resisted all known quantum speedups beyond Grover-like square-root acceleration for over 46 years. The tradeoff is key size: the smallest standard parameter set (mceliece348864) carries a 261,120-byte public key, roughly 220× that of ML-KEM-768.
+Classic McEliece is a code-based, asymmetric post-quantum key encapsulation mechanism (KEM) first proposed by Robert McEliece in 1978. It was a NIST Round 4 candidate; NIST IR 8545 (2025) selected HQC as the code-based KEM and did **not** standardize Classic McEliece, noting it may revisit that decision once the ongoing ISO standardization completes. It encodes a random error vector into a public-key ciphertext using binary Goppa codes over GF(2^m), and relies on the NP-hardness of syndrome decoding on random binary linear codes as its security foundation. Unlike lattice-based KEMs, its security assumption has resisted all known quantum speedups beyond Grover-like square-root acceleration for over 46 years. The tradeoff is key size: the smallest standard parameter set (mceliece348864) carries a 261,120-byte public key, roughly 220× that of ML-KEM-768.
 
 ## When to Use It
 
@@ -33,7 +33,7 @@ See **[LIMITATIONS.md](LIMITATIONS.md)** for a precise breakdown of what is cryp
 
 ## Real-World Usage
 
-- **NIST FIPS (Classic McEliece standard, 2024):** NIST standardized Classic McEliece as part of its Post-Quantum Cryptography project, recommending it for high-assurance applications where key size is acceptable.
+- **NIST Round 4 outcome (NIST IR 8545, 2025):** NIST selected HQC as the code-based KEM and did not standardize Classic McEliece, citing its key size and limited adoption interest; it noted Classic McEliece is undergoing ISO standardization and that NIST may consider a standard based on that work later.
 - **PQShield and high-assurance hardware security modules:** PQShield has implemented Classic McEliece in hardware IP targeting long-lifecycle government and defense platforms.
 - **PQCRYPTO EU project:** recommended Classic McEliece as the conservative KEM of choice in its 2015 post-quantum migration guidance for high-value data.
 - **Open Quantum Safe (liboqs):** the liboqs library ships Classic McEliece reference and optimized implementations used in research, TLS experimentation (via OQS-OpenSSL), and government pilot deployments.
@@ -72,5 +72,7 @@ The `a11y` audit passes with **0 serious/critical WCAG 2.1 AA violations** and *
 The test suite exhaustively verifies that the toy Goppa code corrects **every** error pattern of weight ≤ t at every position, cross-checked against a brute-force syndrome oracle; that the public-key scramble `G_pub = S·G·P` uses a genuinely invertible `S` and a real permutation `P` and that every scrambled row is still a codeword; plus a jsdom integration test that drives the full encapsulate → decapsulate flow and the new primer / scramble-toggle / Patterson-annotation UI. CI runs typecheck + tests before every deploy.
 
 ---
+
+*One of 170+ browser demos in the [Crypto Lab](https://crypto-lab.systemslibrarian.dev/) suite.*
 
 *"So whether you eat or drink or whatever you do, do it all for the glory of God." — 1 Corinthians 10:31*

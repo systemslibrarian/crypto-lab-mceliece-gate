@@ -7,7 +7,7 @@ export interface KeyComparisonEntry {
 export const MCELIECE_348864_PUBLIC_KEY_BYTES = 261120;
 
 export const SIZE_COMPARISONS: KeyComparisonEntry[] = [
-  { name: "Classic McEliece mceliece348864 public key", bytes: 261120, note: "NIST standardized parameter set" },
+  { name: "Classic McEliece mceliece348864 public key", bytes: 261120, note: "Classic McEliece submission parameter set (not NIST-standardized)" },
   { name: "ML-KEM-768 public key", bytes: 1184, note: "NIST FIPS 203" },
   { name: "RSA-2048 public key", bytes: 294, note: "DER SubjectPublicKeyInfo typical" },
   { name: "Average webpage payload", bytes: 50000, note: "Illustrative modern web median" },

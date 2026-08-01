@@ -26,8 +26,9 @@ and which are illustrative, so it can be trusted by a technical audience.
   column-permuted code, so the demonstration is faithful, not cosmetic.
 - **AES-256-GCM.** The KEM + DEM wrap uses the browser's WebCrypto
   `crypto.subtle` — real AES-256-GCM, real SHA-256, real `getRandomValues`.
-- **NIST parameter sizes.** Every key/ciphertext size shown (e.g. the
-  261,120-byte mceliece348864 public key) is the exact standardized value.
+- **Specified parameter sizes.** Every key/ciphertext size shown (e.g. the
+  261,120-byte mceliece348864 public key) is the exact value from the Classic
+  McEliece submission (which NIST did not standardize — see NIST IR 8545).
 
 ## ⚠️ Simulated or simplified
 

@@ -295,7 +295,7 @@ function renderPanel1(code: ToyGoppaCode, sc: ScrambledGenerator): string {
     <p><strong>Error-correcting codes</strong> encode data so that even if errors are introduced, the original message can be recovered. Binary Goppa codes are a family of algebraic codes defined over GF(2<sup>m</sup>) by an irreducible Goppa polynomial g(z). Their algebraic structure is the <em>trapdoor</em>: the holder of (L, g) can correct up to <code>t</code> errors in polynomial time; everyone else sees a seemingly random linear code.</p>
 
     <h3 class="panel-subtitle">The McEliece Construction</h3>
-    <p>The public key is formed as <code>G<sub>pub</sub> = S &middot; G<sub>goppa</sub> &middot; P</code>. The scramble matrix <strong>S</strong> and permutation matrix <strong>P</strong> hide the structured Goppa generator so the public code looks random. An attacker who sees only G<sub>pub</sub> faces decoding a random linear code — <strong>syndrome decoding</strong>, known to be NP-hard (McEliece 1978; Niederreiter 1986). The best known attacks (information-set decoding) remain exponential.</p>
+    <p>The public key is formed as <code>G<sub>pub</sub> = S &middot; G<sub>goppa</sub> &middot; P</code>. The scramble matrix <strong>S</strong> and permutation matrix <strong>P</strong> hide the structured Goppa generator so the public code looks random. An attacker who sees only G<sub>pub</sub> faces decoding a random linear code — <strong>syndrome decoding</strong>, known to be NP-hard (Berlekamp, McEliece &amp; van Tilborg 1978). The best known attacks (information-set decoding) remain exponential.</p>
 
     <div class="callout">46 years without a practical break — the most battle-tested post-quantum proposal in existence.</div>
 
@@ -548,7 +548,7 @@ function renderPanel5(): string {
     { year: "2008", text: "Bernstein, Lange, Peters improve information-set decoding. Best attacks remain exponential. Parameters adjusted, scheme unbroken." },
     { year: "2017", text: "Classic McEliece submitted to NIST PQC competition. Advances through Round 1, 2, 3, and 4." },
     { year: "2022", text: "NIST selects ML-KEM (Kyber) for primary standardization. Classic McEliece continues as Round 4 candidate for high-assurance use." },
-    { year: "2024", text: "NIST standardizes Classic McEliece. 46 years of cryptanalysis, zero practical breaks." }
+    { year: "2025", text: "NIST closes Round 4 (NIST IR 8545): HQC is selected as the code-based KEM and Classic McEliece is NOT standardized — NIST may revisit it once ISO standardization completes. 46+ years of cryptanalysis, zero practical breaks." }
   ];
 
   const timeline = events.map((e) => `
@@ -573,7 +573,7 @@ function renderPanel5(): string {
 
     <p>Classic McEliece appears in government and defense research contexts where the cost of being wrong is catastrophic and key size is an acceptable tradeoff.</p>
 
-    <div class="callout"><strong>References:</strong> McEliece (1978), Niederreiter (1986), Bernstein-Lange-Peters (2008), NIST FIPS for Classic McEliece standardization.</div>
+    <div class="callout"><strong>References:</strong> McEliece (1978), Niederreiter (1986), Bernstein-Lange-Peters (2008), NIST IR 8545 (Round 4 status report, 2025), Classic McEliece submission (classic.mceliece.org).</div>
   </section>`;
 }
 
