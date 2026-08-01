@@ -31,7 +31,13 @@
   --warning: #b23800; /* darkened from #e65100 (3.46:1) to pass 4.5:1 as text on --warning-bg #fff3e0 */
   --warning-bg: #fff3e0;
   --border: #cfd0d8;
-  --border-strong: #a0a0b8;
+  /* Control boundaries (WCAG 2.1 SC 1.4.11). `.input-group textarea` is filled
+     with --bg and sits inside `.step`, which is also --bg — the same hex, 1.00:1 —
+     so the border is the only thing delineating the field. Raised from #a0a0b8
+     (2.12-2.56:1) along the lab's indigo-grey hue: #818195 is 3.80:1 on --bg,
+     3.48:1 on --bg-surface, 3.15:1 on --bg-surface-alt. --border is left
+     unchanged for decorative rules — card outlines, dividers, table rules. */
+  --border-strong: #818195;
   --focus: #1565c0;
   --code-bg: #eef0f4;
   --bar-mceliece: #1565c0;
@@ -68,7 +74,10 @@ html[data-theme="dark"] {
   --warning: #ffa726;
   --warning-bg: #2e2a1b;
   --border: #2a2a44;
-  --border-strong: #3a3a5a;
+  /* Control boundaries (WCAG 2.1 SC 1.4.11). Raised from #3a3a5a (1.36-1.77:1)
+     along the same indigo hue: #727289 is 4.11:1 on --bg, 3.64:1 on
+     --bg-surface, 3.16:1 on --bg-surface-alt. */
+  --border-strong: #727289;
   --focus: #42a5f5;
   --code-bg: #15152a;
   --bar-mceliece: #42a5f5;
@@ -101,7 +110,8 @@ html[data-theme="dark"] {
     --warning: #ffa726;
     --warning-bg: #2e2a1b;
     --border: #2a2a44;
-    --border-strong: #3a3a5a;
+    /* See --border-strong note above — control boundaries, WCAG 2.1 SC 1.4.11. */
+    --border-strong: #727289;
     --focus: #42a5f5;
     --code-bg: #15152a;
     --bar-mceliece: #42a5f5;
@@ -1058,7 +1068,9 @@ button.bit-btn:active {
   font-size: 0.9375rem;
   color: var(--text);
   background: var(--bg);
-  border: 1px solid var(--border);
+  /* Load-bearing control boundary (WCAG 2.1 SC 1.4.11) — fill is --bg on a
+     --bg container (1.00:1), so use --border-strong, not --border. */
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   resize: vertical;
   line-height: 1.5;
