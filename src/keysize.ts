@@ -19,7 +19,7 @@ export const KEM_PUBLIC_KEY_BENCHMARKS = [
   { name: "ML-KEM-512", bytes: 800 },
   { name: "ML-KEM-768", bytes: 1184 },
   { name: "ML-KEM-1024", bytes: 1568 },
-  { name: "BIKE-1", bytes: 1541 },
+  { name: "BIKE-L1", bytes: 1541 },
   { name: "HQC-128", bytes: 2249 }
 ];
 

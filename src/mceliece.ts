@@ -8,11 +8,15 @@ export interface McElieceParams {
   ciphertextBytes: number;
 }
 
+// Ciphertext sizes are the Round 4 specification values (2022-10-23). Round 4
+// removed the 32-byte confirmation hash C1 from the ciphertext, so every set is
+// 32 bytes smaller than the Round 3 figure still quoted in older write-ups
+// (348864: 128 -> 96, 460896: 188 -> 156, 6688128 / 8192128: 240 -> 208).
 export const CLASSIC_MCELIECE_PARAMS: McElieceParams[] = [
-  { name: "mceliece348864", level: "Level 1", n: 3488, k: 2720, t: 64, publicKeyBytes: 261120, ciphertextBytes: 128 },
-  { name: "mceliece460896", level: "Level 3", n: 4608, k: 3360, t: 96, publicKeyBytes: 524160, ciphertextBytes: 188 },
-  { name: "mceliece6688128", level: "Level 5", n: 6688, k: 5024, t: 128, publicKeyBytes: 1044992, ciphertextBytes: 240 },
-  { name: "mceliece8192128", level: "Level 5 alt", n: 8192, k: 6528, t: 128, publicKeyBytes: 1357824, ciphertextBytes: 240 }
+  { name: "mceliece348864", level: "Level 1", n: 3488, k: 2720, t: 64, publicKeyBytes: 261120, ciphertextBytes: 96 },
+  { name: "mceliece460896", level: "Level 3", n: 4608, k: 3360, t: 96, publicKeyBytes: 524160, ciphertextBytes: 156 },
+  { name: "mceliece6688128", level: "Level 5", n: 6688, k: 5024, t: 128, publicKeyBytes: 1044992, ciphertextBytes: 208 },
+  { name: "mceliece8192128", level: "Level 5 alt", n: 8192, k: 6528, t: 128, publicKeyBytes: 1357824, ciphertextBytes: 208 }
 ];
 
 export interface SimulatedKeypair {

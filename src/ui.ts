@@ -506,11 +506,13 @@ function renderPanel4(): string {
   <section class="panel" id="panel-4" aria-labelledby="p4-title">
     <h2 class="panel-title" id="p4-title">4. The Tradeoff Visualization</h2>
 
-    <p>Classic McEliece has the <strong>smallest ciphertext</strong> of any code-based KEM but the <strong>largest public key</strong> by orders of magnitude. The table uses published NIST submission benchmarks (Haswell reference cycles).</p>
+    <p>Classic McEliece has the <strong>smallest ciphertext</strong> of any code-based KEM but the <strong>largest public key</strong> by orders of magnitude.</p>
+
+    <p><strong>Where these numbers come from.</strong> The two kinds of column have different provenance and are labelled separately rather than presented as one measurement set. <em>Sizes</em> are specification figures — for Classic McEliece these are the Round 4 values (specification of 23 October 2022), in which the 32-byte confirmation hash was dropped from the ciphertext and it fell from 128 bytes to 96; older Round 3 write-ups still quote 128. <em>Cycle counts</em> are the Round 3 submission reference benchmarks on Haswell, the last set measured for all four schemes on a common platform; the Round 4 ciphertext change does not meaningfully move them.</p>
 
     <div class="table-wrap" role="region" aria-label="KEM comparison table" tabindex="0">
       <table class="comparison-table">
-        <caption class="sr-only">mceliece348864 vs ML-KEM-512 vs BIKE-1 vs HQC-128</caption>
+        <caption class="sr-only">mceliece348864 vs ML-KEM-512 vs BIKE-L1 vs HQC-128</caption>
         <thead>
           <tr>
             <th scope="col">Scheme</th>
@@ -569,7 +571,9 @@ function renderPanel5(): string {
     <p>No known quantum speedup is better than square-root search acceleration (Grover-like). Unlike lattice problems, where sub-exponential quantum attacks remain an active area of research, syndrome decoding on random linear codes has no known path to polynomial quantum speedup.</p>
 
     <h3 class="panel-subtitle">The Conservative Choice</h3>
-    <p>Lattice-based algorithms (ML-KEM/Kyber) have seen significant cryptanalytic progress: NTRU subfield attacks, parameter adjustments, and ongoing structural exploration. Classic McEliece's security assumption has been studied since 1978 — if you need to encrypt something that must stay secret for 50 years, McEliece is the most defensible choice.</p>
+    <p>Lattice cryptanalysis is younger and still in motion, but it is worth being exact about what has actually moved. The subfield and "overstretched" NTRU attacks (Albrecht&ndash;Bai&ndash;Ducas, CRYPTO 2016; Kirchner&ndash;Fouque, EUROCRYPT 2017) break NTRU instances whose modulus is very large relative to the dimension &mdash; the regime used by some FHE and graded-encoding constructions. They do <strong>not</strong> apply to ML-KEM's Module-LWE parameters, and citing them as progress against Kyber would be a category error.</p>
+
+    <p>What has genuinely moved is the <em>estimate</em>. Improved dual-attack analyses (Guo&ndash;Johansson, ASIACRYPT 2021; MATZOV, 2022) shaved bits off the published Kyber security figures; Ducas&ndash;Pulles (CRYPTO 2023) then argued that those analyses rest on heuristics that do not hold, restoring the primal attack as the best-understood line of attack. ML-KEM has not been broken and nothing has invalidated its parameters. The honest statement is narrower than "significant cryptanalytic progress": roughly a decade in, the community is still arguing over how to <em>price</em> the best known attack, within a few bits. Classic McEliece's assumption has been under attack since 1978 and the best attacks are still exponential information-set decoding, so its cost estimate has had far longer to settle. If you need something to stay secret for 50 years, that settledness &mdash; not a claim that lattices are falling &mdash; is the argument for McEliece.</p>
 
     <p>Classic McEliece appears in government and defense research contexts where the cost of being wrong is catastrophic and key size is an acceptable tradeoff.</p>
 
