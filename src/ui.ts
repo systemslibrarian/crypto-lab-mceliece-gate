@@ -10,6 +10,7 @@ import {
 import { COMPARISON_ROWS, formatCycles } from "./compare";
 import {
   KEM_PUBLIC_KEY_BENCHMARKS,
+  MCELIECE_348864_PUBLIC_KEY_BYTES,
   SIZE_COMPARISONS,
   formatBytes,
   proportion
@@ -366,6 +367,10 @@ function renderKemBars(): string {
 }
 
 function renderPanel2(): string {
+  const mcelieceBytes = MCELIECE_348864_PUBLIC_KEY_BYTES;
+  const mlKemBytes = KEM_PUBLIC_KEY_BENCHMARKS.find((entry) => entry.name === "ML-KEM-768")!.bytes;
+  const rsaBytes = SIZE_COMPARISONS.find((entry) => entry.name === "RSA-2048 public key")!.bytes;
+  const photoBytes = SIZE_COMPARISONS.find((entry) => entry.name === "Typical profile photo")!.bytes;
   return `
   <section class="panel" id="panel-2" aria-labelledby="p2-title">
     <h2 class="panel-title" id="p2-title">2. The Key Size Problem (Real Parameters)</h2>
@@ -377,7 +382,7 @@ function renderPanel2(): string {
       ${renderSizeCards()}
     </div>
 
-    <p>One McEliece public key equals <strong>~220</strong> ML-KEM-768 keys or <strong>~888</strong> RSA-2048 keys. It is roughly five times the size of an average webpage.</p>
+    <p>One McEliece public key equals <strong>~${Math.round(mcelieceBytes / mlKemBytes)}</strong> ML-KEM-768 keys or <strong>~${Math.round(mcelieceBytes / rsaBytes)}</strong> RSA-2048 keys. It is about <strong>${(mcelieceBytes / photoBytes).toFixed(1)} times</strong> the fixed 100 KB profile-photo example above.</p>
 
     <h3 class="panel-subtitle">All NIST PQ KEMs by Public Key Size</h3>
     <ul class="bar-chart" aria-label="Public key size comparison bar chart">
@@ -414,7 +419,7 @@ function renderPanel3(code: ToyGoppaCode): string {
       <p>Sample a random ${code.k}-bit message and a weight-${code.t} error vector, then form the ciphertext <code>C = m·G ⊕ e</code>. After encapsulating you can <strong>tap any ciphertext bit</strong> to inject or clear errors yourself and watch how decoding responds.</p>
       <div class="btn-row">
         <button id="btn-encap" class="btn btn-primary" type="button" aria-label="Run encapsulation">Encapsulate</button>
-        <button id="btn-tamper" class="btn btn-secondary" type="button" disabled aria-label="Inject one extra random error to exceed the correction radius">Add random error</button>
+        <button id="btn-tamper" class="btn btn-secondary" type="button" disabled aria-label="Raise the error weight beyond the correction radius">Exceed correction radius</button>
       </div>
       <div id="out-encap" class="output-area" role="status" aria-live="polite" aria-label="Encapsulation output"></div>
     </div>
@@ -861,22 +866,31 @@ function initPanel3(code: ToyGoppaCode): void {
     }
   });
 
-  // Step 1b: Tamper — flip one extra bit
+  // Step 1b: Tamper — add as many fresh errors as the current learner-edited
+  // state needs to reach t + 1. A single flip is insufficient after the learner
+  // has cleared one or more of the encapsulation errors.
   btnTamper.addEventListener("click", () => {
     if (!enc) return;
     setError("");
     const buf = new Uint32Array(1);
     crypto.getRandomValues(buf);
     let pos = buf[0] % code.n;
-    // prefer a position not already an error, to actually raise the weight
     const isError = (i: number): boolean => channel[i] !== enc!.codeword[i];
-    let guard = 0;
-    while (isError(pos) && guard < code.n) { pos = (pos + 1) % code.n; guard += 1; }
-    channel[pos] ^= 1;
+    let needed = Math.max(0, code.t + 1 - currentWeight());
+    let checked = 0;
+    while (needed > 0 && checked < code.n) {
+      if (!isError(pos)) {
+        channel[pos] ^= 1;
+        needed -= 1;
+      }
+      pos = (pos + 1) % code.n;
+      checked += 1;
+    }
     tampered = true;
     renderEncap();
     resetDownstream();
-    setStatus("Ciphertext tampered: an extra error now exceeds the correction radius.");
+    const weight = currentWeight();
+    setStatus(`Ciphertext tampered: error weight ${weight} exceeds the correction radius t = ${code.t}.`);
   });
 
   // Step 2: Decapsulate (Patterson)

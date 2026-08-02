@@ -132,6 +132,39 @@ describe("UI integration (jsdom)", () => {
     expect((document.getElementById("btn-encrypt") as HTMLButtonElement).disabled).toBe(true);
   });
 
+  it("uses derived key-size comparisons instead of calling 50 KB a web average", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    const panel = document.getElementById("panel-2")?.textContent ?? "";
+    expect(panel).toContain("~221");
+    expect(panel).toContain("~888");
+    expect(panel).toContain("2.6 times");
+    expect(panel).toContain("fixed 100 KB profile-photo example");
+    expect(panel).not.toContain("average webpage");
+  });
+
+  it("pushes a learner-edited ciphertext beyond t even after all original errors are cleared", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    (document.getElementById("btn-encap") as HTMLButtonElement).click();
+    await waitFor(() => document.querySelector("#out-encap .bit-btn") !== null);
+    for (const error of Array.from(document.querySelectorAll<HTMLButtonElement>('#out-encap .bit-btn[aria-pressed="true"]'))) {
+      error.click();
+    }
+    expect(document.getElementById("ct-weight")?.textContent).toBe("0");
+
+    (document.getElementById("btn-tamper") as HTMLButtonElement).click();
+    expect(document.getElementById("ct-weight")?.textContent).toBe("3");
+    expect((document.getElementById("ct-warn") as HTMLParagraphElement).hidden).toBe(false);
+    expect(document.getElementById("aria-live-status")?.textContent).toContain("weight 3 exceeds");
+  });
+
   it("escapes HTML metacharacters in rendered output", async () => {
     // esc() is exercised indirectly; verify decrypted user text is set via textContent.
     const { initUi } = await import("./ui");
