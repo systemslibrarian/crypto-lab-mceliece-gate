@@ -5,7 +5,7 @@ import { chromium } from "playwright";
 import { AxeBuilder } from "@axe-core/playwright";
 import { mkdirSync } from "node:fs";
 
-const BASE = process.env.PREVIEW_URL ?? "http://localhost:4173/crypto-lab-mceliece-gate/";
+const BASE = process.env.PREVIEW_URL ?? "http://localhost:4706/crypto-lab-mceliece-gate/";
 const OUT = new URL("../.a11y/", import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1");
 mkdirSync(OUT, { recursive: true });
 
