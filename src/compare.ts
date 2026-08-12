@@ -1,3 +1,5 @@
+import { yearsSince } from "./keysize";
+
 export interface KEMComparisonRow {
   scheme: string;
   publicKeyBytes: number;
@@ -6,8 +8,22 @@ export interface KEMComparisonRow {
   encapCycles: number;
   decapCycles: number;
   securityAssumption: string;
-  yearsOfCryptanalysis: string;
+  /**
+   * Year the assumption's line of cryptanalysis starts, so the elapsed time is
+   * computed rather than typed. The column used to hold literals ("46", "~8")
+   * that were correct on the day they were written.
+   */
+  cryptanalysisSince: number;
+  /** true when the start year is the scheme's own submission rather than the
+   *  underlying assumption's first appearance — rendered with a "~". */
+  approximate?: boolean;
   source: string;
+}
+
+/** Elapsed years of cryptanalysis for a row, formatted for the table. */
+export function cryptanalysisYears(row: KEMComparisonRow, now?: number): string {
+  const n = yearsSince(row.cryptanalysisSince, now);
+  return `${row.approximate ? "~" : ""}${n} years`;
 }
 
 // Provenance note: the size columns are each scheme's current specification
@@ -27,7 +43,7 @@ export const COMPARISON_ROWS: KEMComparisonRow[] = [
     encapCycles: 76000,
     decapCycles: 148000,
     securityAssumption: "Syndrome decoding on random linear codes",
-    yearsOfCryptanalysis: "46",
+    cryptanalysisSince: 1978,
     source: "Sizes: Classic McEliece Round 4 specification (2022-10-23). Cycles: Round 3 submission benchmark package (Haswell ref cycles)"
   },
   {
@@ -38,7 +54,8 @@ export const COMPARISON_ROWS: KEMComparisonRow[] = [
     encapCycles: 165000,
     decapCycles: 191000,
     securityAssumption: "Module-LWE",
-    yearsOfCryptanalysis: "~8",
+    cryptanalysisSince: 2017,
+    approximate: true,
     source: "Sizes: FIPS 203. Cycles: CRYSTALS-Kyber Round 3 submission benchmarks (Haswell ref cycles)"
   },
   {
@@ -51,7 +68,8 @@ export const COMPARISON_ROWS: KEMComparisonRow[] = [
     encapCycles: 6330000,
     decapCycles: 7810000,
     securityAssumption: "QC-MDPC decoding",
-    yearsOfCryptanalysis: "~10",
+    cryptanalysisSince: 2016,
+    approximate: true,
     source: "Sizes: BIKE Round 4 specification (BIKE-L1). Cycles: BIKE Round 3 submission benchmark tables (Haswell ref cycles)"
   },
   {
@@ -62,7 +80,8 @@ export const COMPARISON_ROWS: KEMComparisonRow[] = [
     encapCycles: 3010000,
     decapCycles: 3790000,
     securityAssumption: "Quasi-cyclic syndrome decoding (Hamming metric)",
-    yearsOfCryptanalysis: "~8",
+    cryptanalysisSince: 2017,
+    approximate: true,
     source: "Sizes and cycles: HQC Round 3 submission tables (Haswell ref cycles)"
   }
 ];

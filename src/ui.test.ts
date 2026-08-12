@@ -165,6 +165,185 @@ describe("UI integration (jsdom)", () => {
     expect(document.getElementById("aria-live-status")?.textContent).toContain("weight 3 exceeds");
   });
 
+  /**
+   * Regression. "Exceed correction radius" is the panel's headline lesson, and
+   * nothing in this suite used to look at what it renders: the e2e test and the
+   * test above both stop at the weight readout, and the toy-kem test only asserts
+   * that at least one of thirty tampered runs produced a different secret.
+   *
+   * What it actually rendered, in every over-radius state, was a confident trace:
+   * "Located error positions (roots of σ)", a σ table marking those roots "✓
+   * error", "Corrected codeword", and "Recovered message" — all printed
+   * unconditionally. A complete census of all 2^16 = 65,536 received vectors says
+   * `trace.success` is false for all 30,464 vectors more than t away from a
+   * codeword, and that in none of them does the corrected vector land on any
+   * codeword at all. Not one of those four labels was true.
+   */
+  it("does not call a failed decode a corrected codeword or a recovered message", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    const encap = document.getElementById("btn-encap") as HTMLButtonElement;
+    const tamper = document.getElementById("btn-tamper") as HTMLButtonElement;
+    const decap = document.getElementById("btn-decap") as HTMLButtonElement;
+
+    // "Exceed correction radius" produces a weight-3 vector, and a complete census
+    // of all 143,360 (codeword, weight-3 error) pairs says that splits two ways:
+    // 57.1% do not decode at all, 42.9% decode onto a DIFFERENT codeword. Both
+    // used to be rendered wrong — the first called a non-codeword a "Corrected
+    // codeword", the second said "Decoding failed" when Patterson had decoded.
+    // Drive until both have been seen; failing to see either is a test failure,
+    // not a pass. (At 57/43 the chance of missing one in 40 rounds is ~1e-10.)
+    let sawUndecodable = 0;
+    let sawWrongCodeword = 0;
+    for (let round = 0; round < 40 && (sawUndecodable === 0 || sawWrongCodeword === 0); round += 1) {
+      encap.click();
+      await waitFor(() => document.querySelector("#out-encap .bit-btn") !== null);
+      tamper.click();
+      expect(
+        document.getElementById("ct-weight")?.textContent,
+        "the tamper control must put the ciphertext beyond the correction radius",
+      ).toBe("3");
+
+      await waitFor(() => decap.disabled === false);
+      decap.click();
+      await waitFor(() => (document.getElementById("out-decap")?.textContent ?? "").includes("Result"));
+      const text = document.getElementById("out-decap")?.textContent ?? "";
+      const rootMarks = Array.from(document.querySelectorAll("#out-decap .sigma-table .row-root td"))
+        .map((td) => td.textContent ?? "")
+        .join(" ");
+
+      // Whatever happened, an over-radius run must never claim Alice's secret.
+      expect(text, "exceeding t must never reproduce the shared secret").not.toContain("K_A == K_B");
+      expect((document.getElementById("btn-encrypt") as HTMLButtonElement).disabled).toBe(true);
+
+      if (document.getElementById("decode-failed-note")) {
+        sawUndecodable += 1;
+        expect(text).toContain("not a codeword");
+        expect(text).toContain("Beyond the correction radius");
+        expect(text, "a non-codeword must not be labelled a corrected codeword").not.toContain(
+          "Corrected codeword",
+        );
+        expect(text, "bits that were never sent are not a recovered message").not.toContain(
+          "Recovered message",
+        );
+        expect(text, "σ's roots are not located errors when decoding failed").not.toContain(
+          "Located error positions",
+        );
+        expect(rootMarks, "σ roots must not be marked as located errors").not.toContain("✓ error");
+      } else {
+        sawWrongCodeword += 1;
+        // Patterson DID decode here — just onto the wrong codeword. Saying
+        // "Decoding failed" would be as wrong as the other branch was.
+        expect(text).toContain("Decoded to a different codeword");
+        expect(text).not.toContain("Beyond the correction radius");
+      }
+    }
+
+    expect(
+      sawUndecodable,
+      "no over-radius run failed to decode, so the failed-decode labelling was never exercised",
+    ).toBeGreaterThan(0);
+    expect(
+      sawWrongCodeword,
+      "no over-radius run decoded to a wrong codeword, so that labelling was never exercised",
+    ).toBeGreaterThan(0);
+  });
+
+  /**
+   * Regression: a successful decode must still say all of that. Without this the
+   * fix above could be "delete the labels", which would break the lesson instead
+   * of correcting it.
+   */
+  it("still calls a successful decode a corrected codeword and a recovered message", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    (document.getElementById("btn-encap") as HTMLButtonElement).click();
+    await waitFor(() => (document.getElementById("out-encap")?.textContent ?? "").includes("shared secret"));
+    const decap = document.getElementById("btn-decap") as HTMLButtonElement;
+    await waitFor(() => decap.disabled === false);
+    decap.click();
+    await waitFor(() => (document.getElementById("out-decap")?.textContent ?? "").includes("K_A == K_B"));
+
+    const text = document.getElementById("out-decap")?.textContent ?? "";
+    expect(text).toContain("Located error positions");
+    expect(text).toContain("Corrected codeword");
+    expect(text).toContain("Recovered message");
+    expect(text).not.toContain("Beyond the correction radius");
+    expect(document.getElementById("decode-failed-note")).toBeNull();
+    const rootMarks = Array.from(document.querySelectorAll("#out-decap .sigma-table .row-root td"))
+      .map((td) => td.textContent ?? "");
+    expect(rootMarks.length, "a successful decode must have located at least one error").toBeGreaterThan(0);
+    expect(rootMarks.join(" ")).toContain("✓ error");
+  });
+
+  /**
+   * Regression: the bar chart announced a floored width as the measurement.
+   * Five of the six KEM bars are under 1% of the largest and were all drawn — and
+   * all announced — at 2%, so ML-KEM-512 (800 B) and HQC-128 (2,249 B) claimed
+   * the same size in the chart whose only job is relative scale.
+   */
+  it("labels key-size bars with the true proportion, not the minimum bar width", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    const { KEM_PUBLIC_KEY_BENCHMARKS, percentOfMax } = await import("./keysize");
+    const max = Math.max(...KEM_PUBLIC_KEY_BENCHMARKS.map((k) => k.bytes));
+
+    // The interesting case must occur: several entries below the 2% floor.
+    const belowFloor = KEM_PUBLIC_KEY_BENCHMARKS.filter((k) => (k.bytes / max) * 100 < 2);
+    expect(
+      belowFloor.length,
+      "no bar is below the display floor, so this test proves nothing",
+    ).toBeGreaterThan(1);
+
+    const fills = Array.from(document.querySelectorAll<HTMLElement>(".bar-chart .bar-fill"));
+    expect(fills.length).toBe(KEM_PUBLIC_KEY_BENCHMARKS.length);
+
+    const labels = fills.map((f) => f.getAttribute("aria-label") ?? "");
+    for (const [i, k] of KEM_PUBLIC_KEY_BENCHMARKS.entries()) {
+      expect(labels[i], `${k.name} must announce its true proportion`).toContain(percentOfMax(k.bytes, max));
+    }
+
+    // Distinct sizes must not announce one identical figure.
+    const smallLabels = KEM_PUBLIC_KEY_BENCHMARKS
+      .map((k, i) => ({ k, label: labels[i] }))
+      .filter(({ k }) => (k.bytes / max) * 100 < 2)
+      .map(({ label }) => label);
+    expect(
+      new Set(smallLabels).size,
+      "bars of different sizes must not all announce the same percentage",
+    ).toBe(smallLabels.length);
+  });
+
+  /**
+   * Regression: "46 years" was written into seven places on the page and is now
+   * two years stale. It must be computed from 1978, not typed.
+   */
+  it("computes the years of cryptanalysis rather than hard-coding them", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    const expected = new Date().getFullYear() - 1978;
+    const page = root.textContent ?? "";
+    expect(page).toContain(`${expected} years of cryptanalysis`);
+    expect(page).toContain(`Why ${expected} Years Matters`);
+    // The comparison table's own column must agree with the prose.
+    const cells = Array.from(document.querySelectorAll(".comparison-table tbody tr"))
+      .map((tr) => Array.from(tr.querySelectorAll("td")).at(-1)?.textContent ?? "");
+    expect(cells[0], "the McEliece row must show the computed span").toBe(`${expected} years`);
+    expect(page, "no stale literal may remain").not.toMatch(/\b46 years\b/);
+  });
+
   it("escapes HTML metacharacters in rendered output", async () => {
     // esc() is exercised indirectly; verify decrypted user text is set via textContent.
     const { initUi } = await import("./ui");

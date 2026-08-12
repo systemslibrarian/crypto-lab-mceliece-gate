@@ -7,13 +7,15 @@ import {
   toHex,
   type McElieceParams
 } from "./mceliece";
-import { COMPARISON_ROWS, formatCycles } from "./compare";
+import { COMPARISON_ROWS, cryptanalysisYears, formatCycles } from "./compare";
 import {
   KEM_PUBLIC_KEY_BENCHMARKS,
   MCELIECE_348864_PUBLIC_KEY_BYTES,
+  MCELIECE_YEARS,
   SIZE_COMPARISONS,
+  barWidthPercent,
   formatBytes,
-  proportion
+  percentOfMax
 } from "./keysize";
 import {
   buildToyGoppaCode,
@@ -126,23 +128,34 @@ function renderPattersonStep(
   </div>`;
 }
 
-/** σ(z) evaluated over the whole support set — roots are the error positions. */
-function renderSigmaTable(code: ToyGoppaCode, sigma: Poly): string {
+/**
+ * σ(z) evaluated over the whole support set.
+ *
+ * When decoding succeeded the roots ARE the error positions. When it did not —
+ * i.e. the corrected vector is not a codeword, which is the case in every
+ * over-radius state — they are merely the roots of a locator that had no valid
+ * solution to find, so the column must not assert a bit was flipped there.
+ */
+function renderSigmaTable(code: ToyGoppaCode, sigma: Poly, decoded: boolean): string {
   const rows = code.support
     .map((a, i) => {
       const v = polyEval(sigma, a);
       const root = v === 0;
+      const mark = root ? (decoded ? "✓ error" : "root — not a located error") : "—";
       return `<tr class="${root ? "row-root" : ""}">
         <th scope="row">${i}</th>
         <td>${toNibble(a)}</td>
         <td>${toNibble(v)}</td>
-        <td>${root ? "✓ error" : "—"}</td>
+        <td>${mark}</td>
       </tr>`;
     })
     .join("");
+  const summary = decoded
+    ? "Show σ(z) evaluated over every support element α<sub>i</sub> — this is how the trapdoor locates errors"
+    : "Show σ(z) evaluated over every support element α<sub>i</sub> — decoding failed, so these roots do not mark real errors";
   return `
   <details class="sigma-details">
-    <summary>Show σ(z) evaluated over every support element α<sub>i</sub> — this is how the trapdoor locates errors</summary>
+    <summary>${summary}</summary>
     <div class="table-wrap" role="region" aria-label="Error locator evaluated over the support set" tabindex="0">
       <table class="sigma-table">
         <caption class="sr-only">σ(z) evaluated at each support element; zero values mark error positions</caption>
@@ -181,23 +194,29 @@ function renderHeader(): string {
     <div class="cl-hero-main">
       <h1 class="cl-hero-title">Classic McEliece</h1>
       <p class="cl-hero-sub">Code-based KEM · Binary Goppa codes</p>
-      <p class="cl-hero-desc">Watch a real binary Goppa code encapsulate, break, and Patterson-decode in your browser, alongside the true NIST key sizes.</p>
+      <p class="cl-hero-desc">Watch a real binary Goppa code encapsulate, break, and Patterson-decode in your browser, alongside the real Classic McEliece key sizes.</p>
     </div>
     <aside class="cl-hero-why" aria-label="Why it matters">
       <span class="cl-hero-why-label">WHY IT MATTERS</span>
-      <p class="cl-hero-why-text">Its security has resisted 46 years of cryptanalysis with zero practical breaks, making it the most conservative post-quantum KEM for data that must stay secret for decades. The tradeoff is a public key hundreds of times larger than lattice schemes.</p>
+      <p class="cl-hero-why-text">Its security has resisted ${MCELIECE_YEARS} years of cryptanalysis with zero practical breaks, making it the most conservative post-quantum KEM for data that must stay secret for decades. The tradeoff is a public key hundreds of times larger than lattice schemes.</p>
     </aside>
   </header>`;
 }
 
 function renderChips(): string {
+  // `aria-label` is PROHIBITED on an element with no role — a bare <div> maps to
+  // `generic`, and the name is silently discarded. axe files that under
+  // `incomplete`, never under `violations`, so a violations-only gate reported
+  // green while the label did nothing. These chips are a list of peers, so
+  // `role="list"` / `role="listitem"` both makes the label legal and gives the
+  // reader a count.
   return `
-  <div class="primitive-chips" aria-label="Cryptographic primitives used">
-    <span class="chip">Classic McEliece</span>
-    <span class="chip">Binary Goppa</span>
-    <span class="chip">Patterson decoding</span>
-    <span class="chip">AES-256-GCM</span>
-    <span class="chip">Code-Based</span>
+  <div class="primitive-chips" role="list" aria-label="Cryptographic primitives used">
+    <span class="chip" role="listitem">Classic McEliece</span>
+    <span class="chip" role="listitem">Binary Goppa</span>
+    <span class="chip" role="listitem">Patterson decoding</span>
+    <span class="chip" role="listitem">AES-256-GCM</span>
+    <span class="chip" role="listitem">Code-Based</span>
   </div>`;
 }
 
@@ -298,7 +317,7 @@ function renderPanel1(code: ToyGoppaCode, sc: ScrambledGenerator): string {
     <h3 class="panel-subtitle">The McEliece Construction</h3>
     <p>The public key is formed as <code>G<sub>pub</sub> = S &middot; G<sub>goppa</sub> &middot; P</code>. The scramble matrix <strong>S</strong> and permutation matrix <strong>P</strong> hide the structured Goppa generator so the public code looks random. An attacker who sees only G<sub>pub</sub> faces decoding a random linear code — <strong>syndrome decoding</strong>, known to be NP-hard (Berlekamp, McEliece &amp; van Tilborg 1978). The best known attacks (information-set decoding) remain exponential.</p>
 
-    <div class="callout">46 years without a practical break — the most battle-tested post-quantum proposal in existence.</div>
+    <div class="callout">${MCELIECE_YEARS} years without a practical break — the most battle-tested post-quantum proposal in existence.</div>
 
     <h3 class="panel-subtitle">This Page's Live Toy Code — GF(2<sup>4</sup>), n=${code.n}, k=${code.k}, t=${code.t}</h3>
     <p class="panel-note">Everything below is computed in your browser by the same code that powers Panel&nbsp;3. Real Classic McEliece uses GF(2<sup>12</sup>)/GF(2<sup>13</sup>) with thousands of columns; the structure is identical.</p>
@@ -310,16 +329,16 @@ function renderPanel1(code: ToyGoppaCode, sc: ScrambledGenerator): string {
       <div class="param-item"><span class="param-key">Corrects</span><span class="param-val">t = ${code.t} errors (min. distance ≥ ${2 * code.t + 1})</span></div>
     </div>
 
-    <div class="matrix-grid" aria-label="Live matrices of the toy Goppa code">
-      <div class="matrix-card">
+    <div class="matrix-grid" role="list" aria-label="Live matrices of the toy Goppa code">
+      <div class="matrix-card" role="listitem">
         <h4>Parity-check H over GF(16) — ${code.t}×${code.n}</h4>
         <pre aria-hidden="true">${renderGFMatrix(code.parityGF)}</pre>
       </div>
-      <div class="matrix-card">
+      <div class="matrix-card" role="listitem">
         <h4>Binary H — ${code.parityBin.length}×${code.n}</h4>
         <pre aria-hidden="true">${renderBinMatrix(code.parityBin)}</pre>
       </div>
-      <div class="matrix-card">
+      <div class="matrix-card" role="listitem">
         <h4>Generator G — ${code.k}×${code.n}</h4>
         <pre aria-hidden="true">${renderBinMatrix(code.generator)}</pre>
       </div>
@@ -335,13 +354,17 @@ function renderPanel1(code: ToyGoppaCode, sc: ScrambledGenerator): string {
 function renderSizeCards(): string {
   const max = Math.max(...SIZE_COMPARISONS.map((e) => e.bytes));
   return SIZE_COMPARISONS.map((e) => {
-    const pct = proportion(e.bytes, max);
+    // Width is floored at 2% so a sub-1% bar stays visible; the LABEL must still
+    // be the real proportion. Announcing the floor turned RSA-2048's 0.11% into
+    // "2%" and made five of the six KEM bars below claim the same size.
+    const width = barWidthPercent(e.bytes, max);
+    const pct = percentOfMax(e.bytes, max);
     return `
-    <div class="size-card" aria-label="${e.name}: ${e.bytes.toLocaleString()} bytes">
+    <div class="size-card" role="listitem">
       <h4>${esc(e.name)}</h4>
-      <span class="size-card-value">${e.bytes.toLocaleString()} bytes (${formatBytes(e.bytes)})</span>
-      <div class="meter" role="img" aria-label="Relative size: ${pct}%">
-        <span class="meter-fill" style="width:${pct}%"></span>
+      <span class="size-card-value">${e.bytes.toLocaleString()} bytes (${formatBytes(e.bytes)}) · ${pct} of the largest</span>
+      <div class="meter" role="img" aria-label="Relative size: ${pct} of the largest key shown">
+        <span class="meter-fill" style="width:${width}%"></span>
       </div>
       <span class="size-card-note">${esc(e.note)}</span>
     </div>`;
@@ -351,16 +374,18 @@ function renderSizeCards(): string {
 function renderKemBars(): string {
   const max = Math.max(...KEM_PUBLIC_KEY_BENCHMARKS.map((k) => k.bytes));
   return KEM_PUBLIC_KEY_BENCHMARKS.map((k) => {
-    const pct = proportion(k.bytes, max);
+    const width = barWidthPercent(k.bytes, max);
+    const pct = percentOfMax(k.bytes, max);
     const tag = schemeTag(k.name);
+    const floored = width !== Math.round((k.bytes / max) * 100);
     return `
     <li class="bar-item" aria-label="${esc(k.name)}: ${formatBytes(k.bytes)}">
       <div class="bar-label">
         <span>${esc(k.name)}</span>
-        <span class="bar-value">${formatBytes(k.bytes)}</span>
+        <span class="bar-value">${formatBytes(k.bytes)} · ${pct}</span>
       </div>
       <div class="bar-track">
-        <div class="bar-fill" data-scheme="${tag}" style="width:${pct}%" role="img" aria-label="${pct}% of maximum"></div>
+        <div class="bar-fill" data-scheme="${tag}" style="width:${width}%" role="img" aria-label="${pct} of the largest key shown${floored ? ", drawn at the 2 percent minimum bar width" : ""}"></div>
       </div>
     </li>`;
   }).join("");
@@ -375,10 +400,10 @@ function renderPanel2(): string {
   <section class="panel" id="panel-2" aria-labelledby="p2-title">
     <h2 class="panel-title" id="p2-title">2. The Key Size Problem (Real Parameters)</h2>
 
-    <p>The smallest Classic McEliece parameter set — <strong>mceliece348864</strong> (NIST Level 1) — has a <strong>261,120-byte</strong> public key. That is 255 KB for one public key.</p>
+    <p>The smallest Classic McEliece parameter set — <strong>mceliece348864</strong> (NIST Level 1) — has a <strong>261,120-byte</strong> public key — ${formatBytes(mcelieceBytes)} for one public key.</p>
 
-    <h3 class="panel-subtitle">How Big Is 261 KB?</h3>
-    <div class="size-grid" aria-label="Public key size comparisons">
+    <h3 class="panel-subtitle">How Big Is ${formatBytes(mcelieceBytes)}?</h3>
+    <div class="size-grid" role="list" aria-label="Public key size comparisons">
       ${renderSizeCards()}
     </div>
 
@@ -388,13 +413,14 @@ function renderPanel2(): string {
     <ul class="bar-chart" aria-label="Public key size comparison bar chart">
       ${renderKemBars()}
     </ul>
+    <p class="panel-note">Every scheme except McEliece is under 1% of the largest bar, so those bars are drawn at a 2% minimum width to stay visible. The percentage beside each label is the real one — read those, not the bar lengths, when comparing the small schemes with one another.</p>
 
     <h3 class="panel-subtitle">Public Key Hex Dump</h3>
-    <p>A live hex dump of the first 8 KB of a generated mceliece348864 public key (simulated bytes at the exact standardized size). Scroll to feel the scale.</p>
+    <p>A live hex dump of the first 8 KB of a generated mceliece348864 public key — simulated bytes at the exact size the Classic McEliece specification defines. (Specified, not standardized: NIST did not standardize Classic McEliece — see the 2025 entry in Panel&nbsp;5.) Scroll to feel the scale.</p>
     <label for="pk-hex" class="sr-only">Public key hex dump (first 8192 bytes)</label>
     <textarea id="pk-hex" class="hex-dump" readonly aria-label="Public key hex dump, first 8192 bytes">Generating…</textarea>
 
-    <div class="callout">This is the price of 46 years of cryptanalysis confidence.</div>
+    <div class="callout">This is the price of ${MCELIECE_YEARS} years of cryptanalysis confidence.</div>
   </section>`;
 }
 
@@ -405,7 +431,7 @@ function renderPanel3(code: ToyGoppaCode): string {
   <section class="panel" id="panel-3" aria-labelledby="p3-title">
     <h2 class="panel-title" id="p3-title">3. Encapsulation &amp; Decapsulation (Live Toy KEM)</h2>
 
-    <p>This runs the <strong>real Goppa code from Panel&nbsp;1</strong> as a key-encapsulation mechanism. Alice picks a random message <code>m</code> and a weight-${code.t} error <code>e</code>, sends <code>C = m·G ⊕ e</code>, and the shared secret is <code>SHA-256(m ‖ e)</code>. Bob's trapdoor (L, g) lets him Patterson-decode <code>C</code> and recover the same secret. An attacker cannot.</p>
+    <p>This runs the <strong>real Goppa code from Panel&nbsp;1</strong> as a key-encapsulation mechanism. Alice picks a random message <code>m</code> and a weight-${code.t} error <code>e</code>, sends <code>C = m·G ⊕ e</code>, and the shared secret is <code>SHA-256(m ‖ e)</code>. Bob's trapdoor (L, g) lets him Patterson-decode <code>C</code> and recover the same secret in a handful of field operations. An attacker without it has to search — which at these toy parameters step&nbsp;3 below does successfully, in 137 patterns. The security claim is about cost, not impossibility: at real parameters that same search is out of reach.</p>
 
     <div id="aria-live-status" class="aria-status" role="status" aria-live="polite"></div>
     <div id="error-status" class="error-status" role="alert" aria-live="assertive"></div>
@@ -484,7 +510,7 @@ function renderComparisonRows(): string {
       <td>${formatCycles(r.encapCycles)}</td>
       <td>${formatCycles(r.decapCycles)}</td>
       <td>${esc(r.securityAssumption)}</td>
-      <td>${r.yearsOfCryptanalysis} years</td>
+      <td>${cryptanalysisYears(r)}</td>
     </tr>`;
   }).join("");
 }
@@ -499,10 +525,10 @@ function renderUseCases(): string {
     { title: "IoT / constrained devices", desc: "Memory and bandwidth extremely limited. McEliece key sizes are prohibitive.", rec: "weak", recLabel: "McEliece: poor fit — use ML-KEM" }
   ];
   return cases.map((c) => `
-    <div class="use-case-card">
+    <div class="use-case-card" role="listitem">
       <h4>${esc(c.title)}</h4>
       <p>${esc(c.desc)}</p>
-      <span class="recommend-tag ${c.rec}" aria-label="${esc(c.recLabel)}">${esc(c.recLabel)}</span>
+      <span class="recommend-tag ${c.rec}">${esc(c.recLabel)}</span>
     </div>`).join("");
 }
 
@@ -536,10 +562,10 @@ function renderPanel4(): string {
       </table>
     </div>
 
-    <div class="callout"><strong>Key insight:</strong> McEliece has the smallest ciphertext among major code-based contenders but by far the largest public key. The "years of cryptanalysis" column tells the story — 46 years vs ~8 for lattice-based alternatives.</div>
+    <div class="callout"><strong>Key insight:</strong> McEliece has the smallest ciphertext among major code-based contenders but by far the largest public key. The "years of cryptanalysis" column tells the story — ${MCELIECE_YEARS} years vs ${cryptanalysisYears(COMPARISON_ROWS.find((r) => r.scheme === "ML-KEM-512")!)} for lattice-based alternatives.</div>
 
     <h3 class="panel-subtitle">When Is McEliece Worth the Key Size?</h3>
-    <div class="use-case-grid" aria-label="Use case matrix">
+    <div class="use-case-grid" role="list" aria-label="Use case matrix">
       ${renderUseCases()}
     </div>
   </section>`;
@@ -566,7 +592,7 @@ function renderPanel5(): string {
 
   return `
   <section class="panel" id="panel-5" aria-labelledby="p5-title">
-    <h2 class="panel-title" id="p5-title">5. Why 46 Years Matters</h2>
+    <h2 class="panel-title" id="p5-title">5. Why ${MCELIECE_YEARS} Years Matters</h2>
 
     <ul class="timeline" aria-label="Classic McEliece cryptanalysis timeline">
       ${timeline}
@@ -609,7 +635,7 @@ function renderCrossLinks(): string {
 function renderFooter(): string {
   return `
   <footer class="demo-footer" aria-label="Footer">
-    <p class="footer-related" aria-label="Related demos">Related demos:
+    <p class="footer-related">Related demos:
       <a href="https://systemslibrarian.github.io/crypto-lab-bike-vault/" class="badge-link" target="_blank" rel="noopener noreferrer" aria-label="Open crypto-lab-bike-vault">crypto-lab-bike-vault</a>
       <a href="https://systemslibrarian.github.io/crypto-lab-hqc-vault/" class="badge-link" target="_blank" rel="noopener noreferrer" aria-label="Open crypto-lab-hqc-vault">crypto-lab-hqc-vault</a>
       <a href="https://systemslibrarian.github.io/crypto-lab-kyber-vault/" class="badge-link" target="_blank" rel="noopener noreferrer" aria-label="Open crypto-lab-kyber-vault">crypto-lab-kyber-vault</a>
@@ -903,8 +929,18 @@ function initPanel3(code: ToyGoppaCode): void {
       const { trace, sharedSecret } = await decapsulate(code, channel);
       const match = trace.success && toHex(sharedSecret) === toHex(enc.sharedSecret);
       const correctedSet = new Set<number>(trace.errorPositions);
+      // `trace.success` is the code's OWN check that the corrected vector has a
+      // zero syndrome, i.e. that it landed on a codeword. Over a complete census
+      // of all 65,536 received vectors it is false for all 30,464 vectors more
+      // than t away from a codeword — exactly the state the "Exceed correction
+      // radius" button exists to create. Those three labels below used to be
+      // printed unconditionally, so in every one of those states the page called
+      // a non-codeword a "Corrected codeword", called bits that were never sent a
+      // "Recovered message", and called σ's roots "located error positions".
+      const decoded = trace.success;
+      const weight = currentWeight();
       show("out-decap", `
-        <p class="pchain-intro">Patterson turns the errors into the <em>roots of a polynomial</em>. Each step below moves closer to a polynomial whose roots are exactly the error positions — open “why this step” to see what each transform buys you.</p>
+        <p class="pchain-intro">Patterson turns the errors into the <em>roots of a polynomial</em>. Each step below moves closer to a polynomial whose roots are the error positions — ${decoded ? "which is exactly what happened here" : "which only works while the error weight stays within t; here it did not"} — open “why this step” to see what each transform buys you.</p>
         ${renderPattersonStep(
           "Syndrome S(z) = Σ 1/(z−α<sub>i</sub>):",
           polyStr(trace.syndrome),
@@ -927,16 +963,31 @@ function initPanel3(code: ToyGoppaCode): void {
           "Error locator σ(z) = α² + z·β²:",
           polyStr(trace.sigma),
           "the polynomial whose roots ARE the error positions",
-          "This is the payoff. σ(z) is assembled from the split so that σ(α<sub>i</sub>) = 0 exactly at the support elements α<sub>i</sub> where an error occurred. Evaluate it across the support set (table below) and every zero points at a flipped bit — errors located, no searching required."
+          decoded
+            ? "This is the payoff. σ(z) is assembled from the split so that σ(α<sub>i</sub>) = 0 exactly at the support elements α<sub>i</sub> where an error occurred. Evaluate it across the support set (table below) and every zero points at a flipped bit — errors located, no searching required."
+            : "That correspondence — σ(α<sub>i</sub>) = 0 exactly where an error occurred — holds only when the error weight is at most t. Past that radius the split still produces a σ(z), and it still has roots, but they are not the error positions: the corrected vector below has a non-zero syndrome, which is the code detecting that this σ is meaningless."
         )}
-        <p><strong>Located error positions (roots of σ):</strong> [${trace.errorPositions.join(", ")}]</p>
-        ${trace.errorPositions.length ? renderSigmaTable(code, trace.sigma) : ""}
-        <p><strong>Corrected codeword:</strong></p>
+        <p><strong>${decoded ? "Located error positions (roots of σ)" : "Roots of σ — no valid error pattern to locate"}:</strong> [${trace.errorPositions.join(", ")}]</p>
+        ${trace.errorPositions.length ? renderSigmaTable(code, trace.sigma, decoded) : ""}
+        ${decoded
+          ? `<p><strong>Corrected codeword:</strong></p>
         ${renderBitVector(trace.corrected, correctedSet)}
         <p><strong>Recovered message:</strong></p>
         ${renderBitVector(trace.message)}
-        <p><strong>Bob's shared secret K<sub>B</sub>:</strong> <span class="result-mono">${secretHex(sharedSecret)}</span></p>
-        <p><strong>Result:</strong> <span class="match-badge ${match ? "success" : "fail"}" aria-label="Shared secrets ${match ? "match" : "do not match"}">${match ? "✓ K_A == K_B" : "✗ Decoding failed / secrets differ"}</span></p>
+        <p><strong>Bob's shared secret K<sub>B</sub>:</strong> <span class="result-mono">${secretHex(sharedSecret)}</span></p>`
+          : `<p class="inline-warn" id="decode-failed-note" role="note">⚠ Patterson did <strong>not</strong> decode: the vector below still has a non-zero syndrome, so it is not a codeword. With error weight ${weight} against a correction radius of t = ${code.t} there is no weight-≤${code.t} pattern consistent with the syndrome, and σ(z)'s roots point at positions that were never flipped.</p>
+        <p><strong>Vector after subtracting σ's roots — <em>not</em> a codeword:</strong></p>
+        ${renderBitVector(trace.corrected, correctedSet)}
+        <p><strong>Bits read from the information columns — <em>not</em> the message Alice sent:</strong></p>
+        ${renderBitVector(trace.message)}
+        <p><strong>Secret Bob would derive from those bits:</strong> <span class="result-mono">${secretHex(sharedSecret)}</span></p>`}
+        <p><strong>Result:</strong> <span class="match-badge ${match ? "success" : "fail"}">${
+          match
+            ? "✓ K_A == K_B"
+            : decoded
+              ? "✗ Decoded to a different codeword — secrets differ"
+              : `✗ Beyond the correction radius — error weight ${weight} > t = ${code.t}`
+        }<span class="sr-only"> — shared secrets ${match ? "match" : "do not match"}</span></span></p>
       `);
       btnAttack.disabled = false;
       if (match) {
@@ -945,17 +996,28 @@ function initPanel3(code: ToyGoppaCode): void {
         setStatus("Decapsulation succeeded. Shared secrets match.");
       } else {
         btnEncrypt.disabled = true;
-        setStatus("Decapsulation did not reproduce Alice's secret — expected when errors exceed t.");
+        setStatus(
+          decoded
+            ? `Patterson decoded, but to a different codeword — the shared secrets differ (error weight ${weight}).`
+            : `Patterson did not decode: error weight ${weight} exceeds the correction radius t = ${code.t}.`
+        );
       }
     } catch (err) {
-      // Patterson can throw on undecodable input (>t errors): that is itself the lesson.
+      // Defensive only. This branch used to claim "Undecodable — more than t
+      // errors", but a complete census of all 2^n = 65,536 received vectors found
+      // pattersonDecode() throwing 0 times: g(z) is irreducible, so every non-zero
+      // syndrome is invertible mod g and the split always terminates. The
+      // over-radius case does NOT arrive here — it returns normally with
+      // trace.success === false and is handled above. So this must not name a
+      // cause it cannot know.
+      const reason = err instanceof Error ? err.message : String(err);
       show("out-decap", `
-        <p><strong>Result:</strong> <span class="match-badge fail">✗ Undecodable — more than t=${code.t} errors</span></p>
-        <p>Patterson decoding cannot resolve an error vector beyond the correction radius, so no valid shared secret is produced.</p>
+        <p><strong>Result:</strong> <span class="match-badge fail">✗ Decapsulation raised an error</span></p>
+        <p>The decoder threw rather than returning a result: <code>${esc(reason)}</code>. This is not the over-radius lesson — that path returns a failed decode, not an exception.</p>
       `);
       btnAttack.disabled = false;
       btnEncrypt.disabled = true;
-      setStatus("Decoding failed: errors exceeded the correction radius.");
+      setStatus("Decapsulation raised an error.");
     } finally {
       btnDecap.disabled = false;
     }
@@ -977,7 +1039,8 @@ function initPanel3(code: ToyGoppaCode): void {
         ? `<p><strong>Brute force found:</strong> positions [${result.errorPositions.join(", ")}] after trying <strong>${result.searchSpace.toLocaleString()}</strong> patterns.</p>`
         : `<p><strong>Brute force found no weight-≤${code.t} solution</strong> (consistent with a tampered, undecodable ciphertext).</p>`}
       <p>Toy search space (weight ≤ ${code.t}, n=${code.n}): <strong>${toySpace.toLocaleString()}</strong> patterns — trivial.</p>
-      <p>Real mceliece348864 (weight ≤ ${realT}, n=${realN}): <strong>≈ 2<sup>${realExp}</sup></strong> patterns — infeasible. The trapdoor turns this into a handful of field operations.</p>
+      <p>Real mceliece348864 (weight ≤ ${realT}, n=${realN}): <strong>≈ 2<sup>${realExp}</sup></strong> patterns to enumerate. The trapdoor turns this into a handful of field operations.</p>
+      <p class="panel-note"><strong>That 2<sup>${realExp}</sup> is the size of the haystack, not the cost of the attack.</strong> Nobody enumerates patterns one at a time: the best known attack is information-set decoding, which the Classic McEliece submission estimates at roughly 2<sup>143</sup> operations for this parameter set (NIST Level 1, the AES-128 tier). Parameters are chosen from the ISD figure, not from the search-space count — the two differ by hundreds of bits, and quoting the larger one as the security level would overstate it enormously.</p>
       <div class="callout"><strong>That gap is the cryptosystem.</strong> Bob's (L, g) makes decoding polynomial; the attacker faces exponential syndrome decoding.</div>
     `);
     setStatus("Attacker comparison complete.");
