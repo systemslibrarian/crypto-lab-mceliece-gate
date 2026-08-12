@@ -35,8 +35,16 @@
      with --bg and sits inside `.step`, which is also --bg — the same hex, 1.00:1 —
      so the border is the only thing delineating the field. Raised from #a0a0b8
      (2.12-2.56:1) along the lab's indigo-grey hue: #818195 is 3.80:1 on --bg,
-     3.48:1 on --bg-surface, 3.15:1 on --bg-surface-alt. --border is left
-     unchanged for decorative rules — card outlines, dividers, table rules. */
+     3.48:1 on --bg-surface, 3.15:1 on --bg-surface-alt, 3.34:1 on --code-bg.
+     --border is left unchanged for decorative rules — card outlines, dividers,
+     table rules.
+
+     This token was defined for control boundaries and then applied to exactly
+     ONE resting control (the textarea below); every other button, segmented
+     control, tappable ciphertext bit, hex field and pill link on the page drew
+     its edge from --border and measured 1.23-1.54:1. They now all use this
+     token. Anything interactive gets --border-strong; anything decorative gets
+     --border. */
   --border-strong: #818195;
   --focus: #1565c0;
   --code-bg: #eef0f4;
@@ -391,7 +399,11 @@ img, svg { max-width: 100%; height: auto; }
   font-weight: 600;
   color: var(--text);
   background: var(--bg-surface-alt);
-  border: 1px solid var(--border);
+  /* Load-bearing control boundary (WCAG 2.1 SC 1.4.11), not a decorative rule:
+     the fill is --bg-surface-alt on a --bg-surface panel, 1.15:1, so the border
+     is the only thing that says "button". --border measured 1.23:1 dark /
+     1.41:1 light against that panel; --border-strong measures 3.64:1 / 3.46:1. */
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   cursor: pointer;
   transition: background var(--transition), border-color var(--transition), color var(--transition);
@@ -537,7 +549,11 @@ img, svg { max-width: 100%; height: auto; }
 .btn-secondary {
   background: var(--bg-surface-alt);
   color: var(--text);
-  border: 1px solid var(--border);
+  /* SC 1.4.11. These sit inside `.step`, which is --bg, so the fill is 1.30:1
+     dark / 1.21:1 light against what surrounds them and the border carries the
+     whole boundary. --border measured 1.39:1 / 1.54:1; --border-strong measures
+     4.12:1 / 3.81:1. */
+  border: 1px solid var(--border-strong);
 }
 .btn-secondary:hover:not(:disabled) {
   background: var(--border);
@@ -674,6 +690,12 @@ button.bit-btn {
   min-width: 2rem;
   height: 2rem;
   cursor: pointer;
+  /* SC 1.4.11. A zero bit is --bg-surface-alt inside an --code-bg output area,
+     1.20:1 dark / 1.06:1 light, so the edge is the only boundary these
+     tappable ciphertext bits have. --border measured 1.29:1 / 1.35:1;
+     --border-strong measures 3.81:1 / 3.34:1. A one bit and a flipped bit keep
+     their own --primary / --error edge, which already clears 3:1 on its fill. */
+  border-color: var(--border-strong);
   font-family: var(--font-mono);
   transition: transform var(--transition), background var(--transition), box-shadow var(--transition);
 }
@@ -798,7 +820,10 @@ button.bit-btn:active {
   line-height: 1.7;
   background: var(--code-bg);
   color: var(--text-muted);
-  border: 1px solid var(--border);
+  /* SC 1.4.11 — --code-bg on a --bg-surface panel is 1.05:1 dark / 1.04:1
+     light, so the border is the field's only edge. --border measured 1.23:1 /
+     1.41:1; --border-strong measures 3.64:1 / 3.46:1. */
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   padding: 0.75rem;
   margin: 0.5rem 0 1rem;
@@ -1141,7 +1166,10 @@ button.bit-btn:active {
   min-height: 44px;
   background: var(--bg-surface);
   color: var(--primary);
-  border: 1px solid var(--border);
+  /* Drawn as a 44px pill, so it reads as a button and takes the control
+     boundary token. --border measured 1.44:1 dark / 1.54:1 light against the
+     page; --border-strong measures 4.12:1 / 3.81:1. */
+  border: 1px solid var(--border-strong);
   border-radius: 100px;
   text-decoration: none;
   font-size: 0.8125rem;
@@ -1174,7 +1202,8 @@ button.bit-btn:active {
   min-height: 44px;
   background: var(--bg-surface);
   color: var(--text);
-  border: 1px solid var(--border);
+  /* Same pill-shaped control as .badge-link — see the note there. */
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
   text-decoration: none;
   font-size: 0.875rem;

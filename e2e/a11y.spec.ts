@@ -1,75 +1,57 @@
-import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test } from '@playwright/test';
+import {
+  boot,
+  driveAllStates,
+  expectBaselineNotStale,
+  NARROW,
+  reportCollected,
+  watchPageErrors,
+} from './gate';
 
 /**
- * WCAG regression gate. Deploys are already gated on the Goppa/KEM unit tests;
- * this gates them on accessibility the same way. Scans the full page with every
- * collapsible expanded and every async output region revealed, in both themes.
+ * WCAG A/AA regression gate.
+ *
+ * The lab is driven along everything it teaches: the arrival state, where all
+ * four output areas are absent, five of Panel 3's six buttons are locked and the
+ * document contains no `<details>` at all; both skip links focused; all three
+ * branches of Panel 1's G / S·G / G_pub fork; encapsulation, then the error
+ * weight walked over the correction radius by hand and back (which is the only
+ * route to `#ct-warn`); Patterson decapsulation on the success path, with every
+ * "why this step" note and the σ root table opened through their own
+ * `<summary>`; the brute-force attacker; AES-256-GCM encrypt and decrypt; the
+ * empty-message `role="alert"`, which is the only state that paints
+ * `#error-status`; then "Exceed correction radius", which relocks everything
+ * downstream, and a second decapsulation that FAILS — the only state on the page
+ * that paints the `--error` match badge; and finally every injected error
+ * cleared to weight 0. Each of those states is scanned, in both themes, at
+ * desktop and phone width.
+ *
+ * See `gate.ts` for why nothing is injected into the page, why no output area is
+ * force-revealed and no `hidden` attribute stripped (the gate this replaces did
+ * both, and un-hiding `#ct-warn` at weight = t built a document that contradicts
+ * itself), why the lab's defaults are asserted rather than assumed, and why
+ * `violations` is not the whole oracle.
  */
 
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
-
-/** Expand every collapsible and reveal every class-toggled output panel so the
- * scan sees all rendered content, and neutralize animations/opacity so nothing
- * is mid-transition when axe samples computed colors. */
-async function revealAll(page: Page): Promise<void> {
-  // Drive the KEM so the Patterson trace (with its "why this step" annotations)
-  // and the AES output are actually in the DOM when axe samples colors.
-  const encap = page.locator('#btn-encap');
-  if (await encap.count()) {
-    await encap.click();
-    const decap = page.locator('#btn-decap');
-    await decap.waitFor({ state: 'visible' });
-    await page.waitForFunction(() => {
-      const b = document.getElementById('btn-decap') as HTMLButtonElement | null;
-      return !!b && !b.disabled;
-    });
-    await decap.click();
-    await page.waitForFunction(() =>
-      (document.getElementById('out-decap')?.textContent ?? '').includes('σ(z)')
-    );
-  }
-  await page.addStyleTag({
-    content: `*,*::before,*::after{transition:none!important;animation:none!important}
-      .output-area{display:block!important}`,
+for (const theme of ['dark', 'light'] as const) {
+  test(`no WCAG A/AA violations in ${theme} theme`, async ({ page }) => {
+    test.setTimeout(900_000);
+    const errors = watchPageErrors(page);
+    await boot(page, theme);
+    await driveAllStates(page, theme);
+    expectBaselineNotStale();
+    expect(errors, errors.join('\n')).toEqual([]);
+    reportCollected();
   });
-  await page.evaluate(() => {
-    for (const d of Array.from(document.querySelectorAll('details'))) {
-      (d as HTMLDetailsElement).open = true;
-    }
-    // Reveal async output areas that only render when a demo step runs.
-    for (const el of Array.from(document.querySelectorAll('.output-area'))) {
-      el.classList.add('visible');
-    }
-    // Un-hide any [hidden] inline notes so their text is scanned too.
-    for (const el of Array.from(document.querySelectorAll('[hidden]'))) {
-      el.removeAttribute('hidden');
-    }
+
+  test(`no WCAG A/AA violations in ${theme} theme at 380px`, async ({ page }) => {
+    test.setTimeout(900_000);
+    const errors = watchPageErrors(page);
+    await page.setViewportSize(NARROW);
+    await boot(page, theme);
+    await driveAllStates(page, `${theme} @380px`);
+    expectBaselineNotStale();
+    expect(errors, errors.join('\n')).toEqual([]);
+    reportCollected();
   });
 }
-
-async function scan(page: Page): Promise<void> {
-  const results = await new AxeBuilder({ page }).withTags(TAGS).analyze();
-  const summary = results.violations.map((v) => ({
-    id: v.id,
-    impact: v.impact,
-    help: v.help,
-    nodes: v.nodes.map((n) => n.target.join(' ')).slice(0, 5),
-  }));
-  expect(summary).toEqual([]);
-}
-
-test('no WCAG A/AA violations in dark theme', async ({ page }) => {
-  await page.goto('.');
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-  await revealAll(page);
-  await scan(page);
-});
-
-test('no WCAG A/AA violations in light theme', async ({ page }) => {
-  await page.goto('.');
-  await page.locator('#cl-theme-toggle').click();
-  await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
-  await revealAll(page);
-  await scan(page);
-});
