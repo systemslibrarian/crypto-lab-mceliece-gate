@@ -41,9 +41,4 @@ export const NONTEXT_BASELINE: Record<
   // Everything inside `#app` — the hero, all five panels, the cross-links and
   // the footer — is audited with no exemption, and comes back clean.
   'control-boundary|a.cl-btn': { ratio: 1.49, required: 3, unverified: false },
-  'control-boundary|button#cl-theme-toggle.cl-btn.cl-icon': {
-    ratio: 1.49,
-    required: 3,
-    unverified: false,
-  },
 };
