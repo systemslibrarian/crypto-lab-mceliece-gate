@@ -208,13 +208,17 @@ export const LOCKED_CONTROLS = [
  * the emulation is applied imperatively BEFORE the navigation and then
  * *asserted* from inside the page.
  *
- * The theme is seeded through `localStorage` rather than by clicking the toggle,
- * which also pins down a real failure mode: `index.html`'s anti-flash script
- * reads `localStorage.getItem('theme')`, the shared bar's `#cl-theme-toggle`
- * writes `localStorage.setItem('theme', …)`, and this lab's own `#theme-toggle`
- * (hidden by the shared bar's CSS, but still wired) writes the same key. If any
- * of the three drifted apart the theme would silently stop persisting, and this
- * boot fails on `data-theme` rather than quietly scanning dark twice.
+ * Dark is the only theme this lab has, and nothing on the page can change it:
+ * there is no toggle in the shared bar and no longer one in the lab's own
+ * header — the markup and its click handler were deleted, so the sole writer of
+ * `data-theme` is `index.html`'s pre-paint script, which stamps the literal
+ * `'dark'` and overwrites whatever `localStorage` holds.
+ *
+ * The seed below is what proves that. It plants a stored preference BEFORE
+ * navigation, exactly as a visitor who clicked the old toggle would carry one,
+ * and the `data-theme` assertion then fails unless the pin wins. Passing
+ * `'light'` here is therefore expected to FAIL — correctly, because the page
+ * must not honour it.
  *
  * The defaults are asserted at length because this lab ships almost entirely
  * EMPTY below Panel 2: all four `.output-area` panels are behind

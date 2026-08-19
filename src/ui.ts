@@ -42,10 +42,6 @@ function esc(s: string): string {
     .replaceAll("'", "&#039;");
 }
 
-function getEffectiveTheme(): string {
-  return document.documentElement.getAttribute("data-theme") ?? "dark";
-}
-
 function schemeTag(name: string): string {
   const lower = name.toLowerCase();
   if (lower.includes("mceliece")) return "mceliece";
@@ -184,12 +180,7 @@ function secretHex(secret: Uint8Array, bytes = 8): string {
    ====================================================================== */
 
 function renderHeader(): string {
-  const isDark = getEffectiveTheme() === "dark";
-  const label = isDark ? "Switch to light mode" : "Switch to dark mode";
-  const icon = isDark ? "\u{1f319}" : "☀️";
   return `
-  <button id="theme-toggle" class="theme-toggle" type="button"
-          aria-label="${label}" style="position: absolute; top: 0; right: 0"><span aria-hidden="true">${icon}</span></button>
   <header class="cl-hero">
     <div class="cl-hero-main">
       <h1 class="cl-hero-title">Classic McEliece</h1>
@@ -678,27 +669,6 @@ function buildPage(code: ToyGoppaCode, sc: ScrambledGenerator): string {
    Interactivity
    ====================================================================== */
 
-function initThemeToggle(): void {
-  const btn = document.getElementById("theme-toggle");
-  if (!btn) return;
-
-  function updateButton(): void {
-    const current = getEffectiveTheme();
-    const iconSpan = btn!.querySelector("span[aria-hidden]");
-    if (iconSpan) iconSpan.textContent = current === "dark" ? "\u{1f319}" : "☀️";
-    btn!.setAttribute("aria-label", current === "dark" ? "Switch to light mode" : "Switch to dark mode");
-  }
-
-  updateButton();
-
-  btn.addEventListener("click", () => {
-    const next = getEffectiveTheme() === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", next);
-    try { localStorage.setItem("theme", next); } catch { /* storage unavailable */ }
-    updateButton();
-  });
-}
-
 function q<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }
@@ -1107,7 +1077,6 @@ export async function initUi(root: HTMLElement): Promise<void> {
   const scrambled = scrambleGenerator(code);
   root.innerHTML = buildPage(code, scrambled);
 
-  initThemeToggle();
   initScrambleView(code, scrambled);
   initPanel3(code);
   await initPanel2(CLASSIC_MCELIECE_PARAMS[0]); // mceliece348864 hex dump
