@@ -8,7 +8,12 @@
     "noEmit": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "types": ["vite/client"]
+    // "node" is here for src/ui.test.ts, which imports `node:crypto` to pin the
+    // WebCrypto implementation the unit tests run against. Vitest 2's own .d.ts
+    // carried a `/// <reference types="node" />`, so @types/node landed in the
+    // program by accident; Vitest 4 dropped that reference, and the import stopped
+    // resolving. Declaring it is the dependency we always had, now written down.
+    "types": ["vite/client", "node"]
   },
   "include": ["src"]
 }
