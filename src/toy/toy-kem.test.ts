@@ -7,6 +7,20 @@ const toHex = (b: Uint8Array) => Array.from(b, (x) => x.toString(16).padStart(2,
 describe("toy McEliece KEM", () => {
   const code = buildToyGoppaCode();
 
+  /**
+   * The two exhaustive censuses below are CPU-bound and run past Vitest's 5s
+   * default on a shared CI runner (~4x slower than a dev laptop): the 143,360-
+   * state census takes ~1.8s locally, so ~7s there. They always did. Vitest 2
+   * could not interrupt a synchronous test — the timeout timer is a macrotask
+   * and the blocked event loop never reached it — so it silently let them run
+   * long; Vitest 4 compares the recorded duration afterwards and fails them.
+   * Nothing here got slower (whole-suite test time is 13.75s on Vitest 2 versus
+   * 14.12s on Vitest 4 for the same CI runner); the limit simply became real.
+   * State it, generously enough to survive a loaded runner and still bounded so
+   * a genuine hang fails rather than idles.
+   */
+  const CENSUS_TIMEOUT_MS = 60_000;
+
   it("encapsulate → decapsulate yields identical shared secrets", async () => {
     for (let trial = 0; trial < 50; trial += 1) {
       const enc = await encapsulate(code);
@@ -81,7 +95,7 @@ describe("toy McEliece KEM", () => {
     expect(undecodable, "the undecodable branch must be reachable").toBeGreaterThan(0);
     expect(wrongCodeword, "the wrong-codeword branch must be reachable").toBeGreaterThan(0);
     expect(undecodable + wrongCodeword).toBe(total);
-  });
+  }, CENSUS_TIMEOUT_MS);
 
   /**
    * The UI's decapsulation error handler used to announce "Undecodable — more
@@ -105,7 +119,7 @@ describe("toy McEliece KEM", () => {
     expect(total).toBe(65536);
     expect(threw, "the decoder must signal over-radius by returning, not by throwing").toBe(0);
     expect(failed, "failed decodes must occur, or this census proves nothing").toBeGreaterThan(0);
-  });
+  }, CENSUS_TIMEOUT_MS);
 
   it("packBits is LSB-first within each byte", () => {
     expect(Array.from(packBits([1, 0, 1]))).toEqual([0b101]);
