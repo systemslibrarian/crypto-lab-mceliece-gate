@@ -91,6 +91,22 @@ describe("UI integration (jsdom)", () => {
     expect((document.getElementById("scramble-caption")?.textContent ?? "")).toContain("G");
   });
 
+  it("shows the structural preprint's scope alongside the toy attacker demonstration", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    const panel = document.getElementById("panel-1")!;
+    const source = panel.querySelector<HTMLAnchorElement>('a[href="https://eprint.iacr.org/2026/1984"]');
+    expect(source).not.toBeNull();
+    expect(panel.innerHTML).toContain("2<sup>94</sup>");
+    expect(panel.textContent).toContain("toy-sized instance");
+    expect(panel.textContent).toContain("preprint");
+    expect(document.getElementById("step-attack")?.textContent).toContain("does not implement that attack");
+    expect(document.getElementById("panel-5")?.textContent).toContain("structural key recovery");
+  });
+
   it("annotates each Patterson step with a 'why this step' expander", async () => {
     const { initUi } = await import("./ui");
     const root = document.createElement("div");

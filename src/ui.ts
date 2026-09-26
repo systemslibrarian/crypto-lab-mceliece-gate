@@ -189,7 +189,7 @@ function renderHeader(): string {
     </div>
     <aside class="cl-hero-why" aria-label="Why it matters">
       <span class="cl-hero-why-label">WHY IT MATTERS</span>
-      <p class="cl-hero-why-text">Its security has resisted ${MCELIECE_YEARS} years of cryptanalysis with zero practical breaks, making it the most conservative post-quantum KEM for data that must stay secret for decades. The tradeoff is a public key hundreds of times larger than lattice schemes.</p>
+      <p class="cl-hero-why-text">Classic McEliece has no practical break at production parameters, but a 2026 preprint estimates a structural key-recovery attack below earlier generic-decoding estimates. Its huge public key is not the only tradeoff; see the research-status note below.</p>
     </aside>
   </header>`;
 }
@@ -215,7 +215,7 @@ function renderWhyMatters(): string {
   return `
   <section class="why-matters" aria-label="What is real in this demo">
     <div class="disclosure" role="note">
-      <strong>What is real here:</strong> the interactive code in Panel&nbsp;1 and Panel&nbsp;3 is a genuine binary Goppa code over GF(2<sup>4</sup>) with real Patterson decoding — only the parameters are toy-sized so each step is visible. Panel&nbsp;2 uses the exact NIST key sizes (with simulated bytes) to convey real-world scale. This is a teaching model, not a production Classic McEliece implementation — see <a href="https://github.com/systemslibrarian/crypto-lab-mceliece-gate/blob/main/LIMITATIONS.md">LIMITATIONS.md</a>.
+      <strong>What is real here:</strong> the interactive code in Panel&nbsp;1 and Panel&nbsp;3 is a genuine binary Goppa code over GF(2<sup>4</sup>) with real Patterson decoding — only the parameters are toy-sized so each step is visible. Panel&nbsp;2 uses the exact submission parameter sizes (with simulated bytes) to convey real-world scale. This is a teaching model, not a production Classic McEliece implementation — see <a href="https://github.com/systemslibrarian/crypto-lab-mceliece-gate/blob/main/LIMITATIONS.md">LIMITATIONS.md</a>.
     </div>
   </section>`;
 }
@@ -248,7 +248,7 @@ function renderScrambleView(code: ToyGoppaCode, sc: ScrambledGenerator): string 
   const onesPub = sc.gPub.reduce((a, r) => a + r.reduce((x, b) => x + b, 0), 0);
   return `
   <div class="scramble" id="scramble-view">
-    <h3 class="panel-subtitle">Watch the structure dissolve: G<sub>pub</sub> = S · G · P</h3>
+    <h3 class="panel-subtitle">Watch the visible structure disappear: G<sub>pub</sub> = S · G · P</h3>
     <p>This is the step that makes the public code <em>look random</em>. Bob's structured Goppa generator <strong>G</strong> is multiplied by a random invertible matrix <strong>S</strong> (which mixes the rows) and a permutation <strong>P</strong> (which shuffles the columns). The result <strong>G<sub>pub</sub></strong> spans the exact same code — so Bob can still decode — but its Goppa structure is no longer visible, so an attacker sees only a random-looking linear code. Both matrices below are computed live in your browser.</p>
     <div class="scramble-toggle" role="group" aria-label="Choose which view of the generator to show">
       <button type="button" class="seg-btn is-active" id="scramble-bob" aria-pressed="true">Bob sees: structured G</button>
@@ -263,7 +263,7 @@ function renderScrambleView(code: ToyGoppaCode, sc: ScrambledGenerator): string 
         <strong>Structured G (${code.k}×${code.n}).</strong> Note the tidy identity block on the left — the systematic structure Bob's trapdoor relies on. Total set bits: ${onesG}.
       </p>
     </div>
-    <p class="panel-note">S is invertible, so multiplying by it only re-expresses the same set of codewords; P just relabels bit positions. Nothing is lost — the structure is <em>hidden</em>, not destroyed. That hiding is what forces the attacker into NP-hard syndrome decoding. (Attacker's G<sub>pub</sub> has ${onesPub} set bits — the tidy identity block is gone.)</p>
+    <p class="panel-note">S is invertible, so multiplying by it only re-expresses the same set of codewords; P just relabels bit positions. The obvious structure is <em>hidden</em>, not destroyed. A matrix looking random in this toy display does not prove computational indistinguishability: structural attacks may use patterns the display cannot show. (Attacker's G<sub>pub</sub> has ${onesPub} set bits — the tidy identity block is gone.)</p>
   </div>`;
 }
 
@@ -285,11 +285,11 @@ function renderPrimer(): string {
       </div>
       <div class="primer-term">
         <dt>Trapdoor</dt>
-        <dd>A computation that is easy one way and hard to reverse — unless you hold a secret. Here the secret is <code>(L, g)</code>: with it, repairing errors is fast; without it, you are stuck brute-forcing.</dd>
+        <dd>A computation that is easy one way and hard to reverse — unless you hold a secret. Here the secret is <code>(L, g)</code>: with it, repairing errors is fast; without it, generic decoding is costly, while structural key-recovery attacks are another possible route.</dd>
       </div>
       <div class="primer-term">
         <dt>Why a random code is hard to decode</dt>
-        <dd>Finding the error pattern behind a syndrome, on a code with no visible structure, is <strong>syndrome decoding</strong> — proven NP-hard. McEliece hides the friendly Goppa structure so an attacker sees only a random-looking code and must search.</dd>
+        <dd>Finding the error pattern behind a syndrome for a general code is <strong>syndrome decoding</strong> — NP-hard in the worst case. A scrambled Goppa public key looks random here, but that visual fact does not rule out a structural attack on this particular code family.</dd>
       </div>
     </dl>
     <p class="primer-note"><strong>Reading the hex.</strong> The field here is <strong>GF(16)</strong>, so every value is one of 16 elements written as a single hex digit (a <em>nibble</em>): <code>0…9</code> then <code>a…f</code>. When you see <code>a</code> below it means the field element 10, not the letter A.</p>
@@ -306,9 +306,9 @@ function renderPanel1(code: ToyGoppaCode, sc: ScrambledGenerator): string {
     <p><strong>Error-correcting codes</strong> encode data so that even if errors are introduced, the original message can be recovered. Binary Goppa codes are a family of algebraic codes defined over GF(2<sup>m</sup>) by an irreducible Goppa polynomial g(z). Their algebraic structure is the <em>trapdoor</em>: the holder of (L, g) can correct up to <code>t</code> errors in polynomial time; everyone else sees a seemingly random linear code.</p>
 
     <h3 class="panel-subtitle">The McEliece Construction</h3>
-    <p>The public key is formed as <code>G<sub>pub</sub> = S &middot; G<sub>goppa</sub> &middot; P</code>. The scramble matrix <strong>S</strong> and permutation matrix <strong>P</strong> hide the structured Goppa generator so the public code looks random. An attacker who sees only G<sub>pub</sub> faces decoding a random linear code — <strong>syndrome decoding</strong>, known to be NP-hard (Berlekamp, McEliece &amp; van Tilborg 1978). The best known attacks (information-set decoding) remain exponential.</p>
+    <p>The public key is formed as <code>G<sub>pub</sub> = S &middot; G<sub>goppa</sub> &middot; P</code>. The scramble matrix <strong>S</strong> and permutation matrix <strong>P</strong> conceal obvious structure in this view. Generic syndrome decoding is hard for random codes, but Classic McEliece also needs its masked Goppa keys to withstand <em>structural</em> attacks. A 2026 preprint builds on a public-key distinguisher and estimates key recovery below earlier information-set-decoding costs for its candidate parameters.</p>
 
-    <div class="callout">${MCELIECE_YEARS} years without a practical break — the most battle-tested post-quantum proposal in existence.</div>
+    <div class="callout" role="note"><strong>Research status (September 2026):</strong> <a href="https://eprint.iacr.org/2026/1984" target="_blank" rel="noopener noreferrer">Weis, ePrint 2026/1984</a> estimates structural key recovery at 2<sup>94</sup>–2<sup>102</sup> bit operations in a model that does not charge for memory, or 2<sup>110</sup>–2<sup>128</sup> with the paper's memory accounting, across five candidate parameter sets. Several steps are heuristic; the completed key recovery is on a toy-sized instance, not a production key. This is a preprint, not a practical break or a new standardization decision.</div>
 
     <h3 class="panel-subtitle">This Page's Live Toy Code — GF(2<sup>4</sup>), n=${code.n}, k=${code.k}, t=${code.t}</h3>
     <p class="panel-note">Everything below is computed in your browser by the same code that powers Panel&nbsp;3. Real Classic McEliece uses GF(2<sup>12</sup>)/GF(2<sup>13</sup>) with thousands of columns; the structure is identical.</p>
@@ -460,7 +460,7 @@ function renderPanel3(code: ToyGoppaCode): string {
         <span class="step-number" aria-hidden="true">3</span>
         <span class="step-title">Attacker (no trapdoor)</span>
       </div>
-      <p>Without (L, g), the attacker must solve syndrome decoding on a code that looks random — searching error patterns by brute force. Feasible at toy size; exponential at real parameters.</p>
+      <p>This button runs brute-force decoding against the toy code. Real-parameter attackers can also target hidden Goppa structure; the 2026 preprint estimates a cheaper, still impractical key-recovery route. This demo does not implement that attack.</p>
       <div class="btn-row">
         <button id="btn-attack" class="btn btn-secondary" type="button" disabled aria-label="Run brute-force syndrome decoding">Run brute-force attack</button>
       </div>
@@ -476,7 +476,7 @@ function renderPanel3(code: ToyGoppaCode): string {
       <p>The recovered shared secret keys AES-256-GCM to encrypt and decrypt a message end-to-end.</p>
       <div class="input-group">
         <label for="aes-message">Message to encrypt</label>
-        <textarea id="aes-message" rows="2">Classic McEliece: conservative post-quantum security since 1978.</textarea>
+        <textarea id="aes-message" rows="2">Classic McEliece: binary Goppa codes since 1978.</textarea>
       </div>
       <div class="btn-row">
         <button id="btn-encrypt" class="btn btn-primary" type="button" disabled aria-label="Encrypt message with AES-256-GCM">Encrypt</button>
@@ -508,10 +508,10 @@ function renderComparisonRows(): string {
 
 function renderUseCases(): string {
   const cases = [
-    { title: "Long-term archival encryption", desc: "Data that must remain secret for 50+ years. Key size is irrelevant if stored once.", rec: "strong", recLabel: "McEliece: strong choice" },
-    { title: "Government / military high-assurance", desc: "Maximum cryptanalytic confidence required. Conservative assumptions outweigh bandwidth cost.", rec: "strong", recLabel: "McEliece: strong choice" },
+    { title: "Long-term archival encryption", desc: "Data that must remain secret for 50+ years. Evaluate structural-attack estimates and algorithmic diversity as well as key size.", rec: "moderate", recLabel: "McEliece: evaluate" },
+    { title: "Government / military high-assurance", desc: "Maximum cryptanalytic confidence required. Review current attack estimates and deployment guidance before choosing parameters.", rec: "moderate", recLabel: "McEliece: evaluate" },
     { title: "Hybrid PQ where key size is acceptable", desc: "Combined classical + PQ deployment. McEliece adds a code-based assumption alongside lattice-based.", rec: "moderate", recLabel: "McEliece: viable" },
-    { title: "Store now, decrypt later threat model", desc: "Adversary records today, breaks crypto later. McEliece offers the strongest hedge against future cryptanalysis.", rec: "strong", recLabel: "McEliece: strong choice" },
+    { title: "Store now, decrypt later threat model", desc: "Adversary records today, breaks crypto later. Code-based diversity can help, but evaluate current structural-attack estimates and key size.", rec: "moderate", recLabel: "McEliece: evaluate" },
     { title: "General TLS / web traffic", desc: "Latency and bandwidth constrained. ML-KEM is the practical choice here.", rec: "weak", recLabel: "McEliece: poor fit — use ML-KEM" },
     { title: "IoT / constrained devices", desc: "Memory and bandwidth extremely limited. McEliece key sizes are prohibitive.", rec: "weak", recLabel: "McEliece: poor fit — use ML-KEM" }
   ];
@@ -572,7 +572,8 @@ function renderPanel5(): string {
     { year: "2008", text: "Bernstein, Lange, Peters improve information-set decoding. Best attacks remain exponential. Parameters adjusted, scheme unbroken." },
     { year: "2017", text: "Classic McEliece submitted to NIST PQC competition. Advances through Round 1, 2, 3, and 4." },
     { year: "2022", text: "NIST selects ML-KEM (Kyber) for primary standardization. Classic McEliece continues as Round 4 candidate for high-assurance use." },
-    { year: "2025", text: "NIST closes Round 4 (NIST IR 8545): HQC is selected as the code-based KEM and Classic McEliece is NOT standardized — NIST may revisit it once ISO standardization completes. 46+ years of cryptanalysis, zero practical breaks." }
+    { year: "2025", text: "NIST closes Round 4 (NIST IR 8545): HQC is selected as the code-based KEM and Classic McEliece is NOT standardized — NIST may revisit it once ISO standardization completes." },
+    { year: "2026", text: "Weis (ePrint 2026/1984) estimates structural key recovery below generic ISD costs for the candidate sets. A toy key is recovered; full-size estimates include heuristics and do not show a practical break." }
   ];
 
   const timeline = events.map((e) => `
@@ -595,11 +596,11 @@ function renderPanel5(): string {
     <h3 class="panel-subtitle">The Conservative Choice</h3>
     <p>Lattice cryptanalysis is younger and still in motion, but it is worth being exact about what has actually moved. The subfield and "overstretched" NTRU attacks (Albrecht&ndash;Bai&ndash;Ducas, CRYPTO 2016; Kirchner&ndash;Fouque, EUROCRYPT 2017) break NTRU instances whose modulus is very large relative to the dimension &mdash; the regime used by some FHE and graded-encoding constructions. They do <strong>not</strong> apply to ML-KEM's Module-LWE parameters, and citing them as progress against Kyber would be a category error.</p>
 
-    <p>What has genuinely moved is the <em>estimate</em>. Improved dual-attack analyses (Guo&ndash;Johansson, ASIACRYPT 2021; MATZOV, 2022) shaved bits off the published Kyber security figures; Ducas&ndash;Pulles (CRYPTO 2023) then argued that those analyses rest on heuristics that do not hold, restoring the primal attack as the best-understood line of attack. ML-KEM has not been broken and nothing has invalidated its parameters. The honest statement is narrower than "significant cryptanalytic progress": roughly a decade in, the community is still arguing over how to <em>price</em> the best known attack, within a few bits. Classic McEliece's assumption has been under attack since 1978 and the best attacks are still exponential information-set decoding, so its cost estimate has had far longer to settle. If you need something to stay secret for 50 years, that settledness &mdash; not a claim that lattices are falling &mdash; is the argument for McEliece.</p>
+    <p>ML-KEM has not been broken and nothing has invalidated its parameters. Classic McEliece's assumption has been studied since 1978, but its cost estimate is still evolving too. The 2026 structural key-recovery estimates are below generic ISD figures under stated heuristic and memory-model assumptions; no production-size key recovery has been demonstrated. Long-term deployments should evaluate that uncertainty alongside the benefit of a distinct code-based assumption.</p>
 
     <p>Classic McEliece appears in government and defense research contexts where the cost of being wrong is catastrophic and key size is an acceptable tradeoff.</p>
 
-    <div class="callout"><strong>References:</strong> McEliece (1978), Niederreiter (1986), Bernstein-Lange-Peters (2008), NIST IR 8545 (Round 4 status report, 2025), Classic McEliece submission (classic.mceliece.org).</div>
+    <div class="callout"><strong>References:</strong> McEliece (1978), Niederreiter (1986), Bernstein-Lange-Peters (2008), NIST IR 8545 (Round 4 status report, 2025), Classic McEliece submission (classic.mceliece.org), <a href="https://eprint.iacr.org/2026/1984" target="_blank" rel="noopener noreferrer">Weis (ePrint 2026/1984, preprint)</a>.</div>
   </section>`;
 }
 

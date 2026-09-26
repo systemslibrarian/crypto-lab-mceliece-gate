@@ -42,7 +42,7 @@ export const COMPARISON_ROWS: KEMComparisonRow[] = [
     keygenCycles: 6350000,
     encapCycles: 76000,
     decapCycles: 148000,
-    securityAssumption: "Syndrome decoding on random linear codes",
+    securityAssumption: "Generic decoding and hidden-Goppa structural hardness",
     cryptanalysisSince: 1978,
     source: "Sizes: Classic McEliece Round 4 specification (2022-10-23). Cycles: Round 3 submission benchmark package (Haswell ref cycles)"
   },
