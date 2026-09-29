@@ -269,8 +269,14 @@ export async function boot(page: Page, theme: 'dark' | 'light'): Promise<void> {
   await expect(page.locator('#scramble-caption')).toContainText('Structured G (8×16)');
 
   // ── The one editable input, at its shipped value ─────────────────────────
+  // The wording changed in b706294, which dropped "conservative post-quantum
+  // security" from this lab after the 2026 structural-attack preprint. This
+  // assertion is on the SHIPPED VALUE, so it moves with it; the check itself is
+  // unchanged. It was the only thing standing between that correction and the
+  // live site — boot() throwing here failed both axe runs, failed the build job,
+  // and skipped the deploy, so the page kept serving the claim for three days.
   await expect(page.locator('#aes-message')).toHaveValue(
-    'Classic McEliece: conservative post-quantum security since 1978.'
+    'Classic McEliece: binary Goppa codes since 1978.'
   );
 
   // `[hidden]` has specificity (0,1,0) — identical to a class — so any later
