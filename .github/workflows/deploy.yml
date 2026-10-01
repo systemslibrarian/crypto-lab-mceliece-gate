@@ -13,7 +13,9 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages
+  # NOT a bare `pages`: with cancel-in-progress, a PR run would cancel a live
+  # main deploy.
+  group: pages-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
