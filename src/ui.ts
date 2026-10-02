@@ -508,10 +508,10 @@ function renderComparisonRows(): string {
 
 function renderUseCases(): string {
   const cases = [
-    { title: "Long-term archival encryption", desc: "Data that must remain secret for 50+ years. Evaluate structural-attack estimates and algorithmic diversity as well as key size.", rec: "moderate", recLabel: "McEliece: evaluate" },
-    { title: "Government / military high-assurance", desc: "Maximum cryptanalytic confidence required. Review current attack estimates and deployment guidance before choosing parameters.", rec: "moderate", recLabel: "McEliece: evaluate" },
-    { title: "Hybrid PQ where key size is acceptable", desc: "Combined classical + PQ deployment. McEliece adds a code-based assumption alongside lattice-based.", rec: "moderate", recLabel: "McEliece: viable" },
-    { title: "Store now, decrypt later threat model", desc: "Adversary records today, breaks crypto later. Code-based diversity can help, but evaluate current structural-attack estimates and key size.", rec: "moderate", recLabel: "McEliece: evaluate" },
+    { title: "Long-term archival encryption", desc: "Data that must remain secret for 50+ years. Evaluate structural-attack estimates and algorithmic diversity as well as key size.", rec: "moderate", recLabel: "McEliece: avoid for new applications (BSI)" },
+    { title: "Government / military high-assurance", desc: "Maximum cryptanalytic confidence required. Review current attack estimates and deployment guidance before choosing parameters.", rec: "moderate", recLabel: "McEliece: avoid for new applications (BSI)" },
+    { title: "Hybrid PQ where key size is acceptable", desc: "Combined classical + PQ deployment. McEliece adds a code-based assumption alongside lattice-based.", rec: "moderate", recLabel: "McEliece: avoid for new applications (BSI)" },
+    { title: "Store now, decrypt later threat model", desc: "Adversary records today, breaks crypto later. Code-based diversity can help, but evaluate current structural-attack estimates and key size.", rec: "moderate", recLabel: "McEliece: avoid for new applications (BSI)" },
     { title: "General TLS / web traffic", desc: "Latency and bandwidth constrained. ML-KEM is the practical choice here.", rec: "weak", recLabel: "McEliece: poor fit — use ML-KEM" },
     { title: "IoT / constrained devices", desc: "Memory and bandwidth extremely limited. McEliece key sizes are prohibitive.", rec: "weak", recLabel: "McEliece: poor fit — use ML-KEM" }
   ];
@@ -555,7 +555,9 @@ function renderPanel4(): string {
 
     <div class="callout"><strong>Key insight:</strong> McEliece has the smallest ciphertext among major code-based contenders but by far the largest public key. The "years of cryptanalysis" column tells the story — ${MCELIECE_YEARS} years vs ${cryptanalysisYears(COMPARISON_ROWS.find((r) => r.scheme === "ML-KEM-512")!)} for lattice-based alternatives.</div>
 
-    <h3 class="panel-subtitle">When Is McEliece Worth the Key Size?</h3>
+    <div class="callout" role="note" data-testid="bsi-guidance"><strong>BSI deployment guidance — October 1, 2026:</strong> <a href="https://www.bsi.bund.de/DE/Service-Navi/Presse/Alle-Meldungen-News/Meldungen/2026/Classic-McEliece_261001.html" target="_blank" rel="noopener noreferrer">BSI advises against using Classic McEliece in new developments or when planning new cryptographic applications.</a> BSI reports no current practical attack on its recommended parameter sets. This is deployment guidance, not an ISO withdrawal or a change to NIST’s 2025 decision; earlier TR-02102-1 recommendations were limited to hybrid use.</div>
+
+    <h3 class="panel-subtitle">Historical Use Cases and Current Deployment Guidance</h3>
     <div class="use-case-grid" role="list" aria-label="Use case matrix">
       ${renderUseCases()}
     </div>

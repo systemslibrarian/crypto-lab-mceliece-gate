@@ -8,12 +8,14 @@ Classic McEliece is a code-based, asymmetric post-quantum key encapsulation mech
 
 **Research update (September 25, 2026):** [Weis, ePrint 2026/1984](https://eprint.iacr.org/2026/1984), a preprint building on [Ghoshal, Ishai, Jain and Sun, ePrint 2026/1630](https://eprint.iacr.org/2026/1630) (GIJS), estimates structural key recovery across five Classic McEliece candidate parameter sets at 2^94–2^102 bit operations in a model that does not charge for memory, or 2^110–2^128 with the paper's memory accounting. The estimates use explicit heuristic assumptions. The author recovered a **toy-sized** key; no production-sized key was recovered, and the estimated work remains impractical. This result is independent of the quantum-decoding discussion and does not change NIST's 2025 standardization decision.
 
+**Deployment guidance (October 1, 2026):** [BSI](https://www.bsi.bund.de/DE/Service-Navi/Presse/Alle-Meldungen-News/Meldungen/2026/Classic-McEliece_261001.html) advises against using Classic McEliece in new developments or when planning new cryptographic applications. BSI states that its recommended parameter sets are not currently subject to a practical attack. This is deployment guidance following structural cryptanalysis, not an ISO withdrawal or a change to NIST’s 2025 decision. Earlier TR-02102-1 recommendations were limited to hybrid use.
+
 ## When to Use It
 
-- **Long-horizon archival encryption (50-year secrecy horizon):** a code-based alternative can diversify a hybrid design, but evaluate the new structural estimates and the huge public key before relying on it for long-lived secrets.
-- **High-assurance government or defense systems:** where the cost of cryptographic failure is catastrophic and bandwidth is secondary to confidence in the security assumption.
-- **Store-now / decrypt-later threat models:** a code-based assumption offers diversity, but long-term planning must account for classical structural research as well as future quantum attacks.
-- **Hybrid PQ deployments (code-based + lattice-based):** pairing McEliece with ML-KEM provides defense-in-depth against a break in either assumption class.
+- **Studying long-horizon archival encryption:** explore code-based diversity and its costs; BSI currently advises against selecting Classic McEliece for new applications.
+- **Studying high-assurance government or defense designs:** examine historical McEliece use cases alongside the October 2026 BSI restriction on new applications.
+- **Store-now / decrypt-later threat models:** study classical structural research as well as quantum attacks; this educational example is not a recommendation to deploy McEliece.
+- **Hybrid design education:** compare distinct assumptions and combiner requirements while respecting BSI’s advice against new McEliece applications.
 - **Not for bandwidth-constrained TLS or IoT:** a 261 KB public key is prohibitive in handshake protocols or constrained devices — use ML-KEM (FIPS 203) instead.
 - **Do NOT treat this as production McEliece:** it is a teaching demo running a toy GF(2⁴) Goppa code, not constant-time, and not the full submitted KEM API.
 
@@ -39,7 +41,7 @@ See **[LIMITATIONS.md](LIMITATIONS.md)** for a precise breakdown of what is cryp
 - **PQShield and high-assurance hardware security modules:** PQShield has implemented Classic McEliece in hardware IP targeting long-lifecycle government and defense platforms.
 - **PQCRYPTO EU project:** recommended Classic McEliece as the conservative KEM of choice in its 2015 post-quantum migration guidance for high-value data.
 - **Open Quantum Safe (liboqs):** the liboqs library ships Classic McEliece reference and optimized implementations used in research, TLS experimentation (via OQS-OpenSSL), and government pilot deployments.
-- **German BSI technical guidance (TR-02102-1):** the German Federal Office for Information Security lists Classic McEliece as an approved post-quantum KEM for long-term data protection use cases.
+- **German BSI guidance:** earlier TR-02102-1 recommendations covered hybrid use; the [October 1, 2026 notice](https://www.bsi.bund.de/DE/Service-Navi/Presse/Alle-Meldungen-News/Meldungen/2026/Classic-McEliece_261001.html) now advises against new McEliece developments and planned applications. This does not establish a practical attack on its recommended parameter sets.
 
 ## How to Run Locally
 

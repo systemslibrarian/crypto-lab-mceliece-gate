@@ -77,3 +77,14 @@ test('tamper control guarantees an over-radius state after learner edits', async
   await expect(page.locator('#ct-warn')).toBeVisible();
   await expect(page.locator('#aria-live-status')).toContainText('weight 3 exceeds the correction radius t = 2');
 });
+
+test('current BSI guidance qualifies prospective McEliece deployments', async ({ page }) => {
+  await page.goto('.');
+  const guidance = page.getByTestId('bsi-guidance');
+  await expect(guidance).toContainText('October 1, 2026');
+  await expect(guidance).toContainText('new developments');
+  await expect(guidance).toContainText('no current practical attack');
+  await expect(guidance).toContainText('not an ISO withdrawal');
+  await expect(page.locator('#panel-4')).not.toContainText('McEliece: viable');
+  await expect(page.locator('#panel-4')).toContainText('avoid for new applications (BSI)');
+});
