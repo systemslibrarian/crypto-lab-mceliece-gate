@@ -100,7 +100,12 @@ describe("UI integration (jsdom)", () => {
     const panel = document.getElementById("panel-1")!;
     const source = panel.querySelector<HTMLAnchorElement>('a[href="https://eprint.iacr.org/2026/1984"]');
     expect(source).not.toBeNull();
-    expect(panel.innerHTML).toContain("2<sup>94</sup>");
+    for (const exponent of [89, 98, 107, 117, 128]) {
+      expect(panel.innerHTML).toContain(`2<sup>${exponent}</sup>`);
+    }
+    for (const label of ["October 6, 2026", "without memory charges", "addressed memory", "whole-memory accounting", "per-run costs", "100–1,400 runs", "one run", "four heuristic assumptions", "not a production key"]) {
+      expect(panel.textContent).toContain(label);
+    }
     expect(panel.textContent).toContain("toy-sized instance");
     expect(panel.textContent).toContain("preprint");
     expect(document.getElementById("step-attack")?.textContent).toContain("does not implement that attack");
