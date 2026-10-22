@@ -573,7 +573,7 @@ function renderPanel5(): string {
     { year: "1988", text: "Sidelnikov-Shestakov attack breaks Reed-Solomon McEliece but Goppa codes remain secure — structural choice validated." },
     { year: "2008", text: "Bernstein, Lange, Peters improve information-set decoding. Best attacks remain exponential. Parameters adjusted, scheme unbroken." },
     { year: "2017", text: "The later Classic McEliece KEM is submitted to NIST's PQC process. It advances through all four rounds." },
-    { year: "2022", text: "NIST selects ML-KEM (Kyber) for primary standardization. Classic McEliece continues as Round 4 candidate for high-assurance use." },
+    { year: "2022", text: "NIST selects CRYSTALS-Kyber for standardization; it later becomes ML-KEM in FIPS 203 (2024). Classic McEliece continues as a Round 4 candidate." },
     { year: "2025", text: "NIST IR 8545 selects HQC for standardization, not Classic McEliece. HQC's selection is not a final FIPS; NIST may revisit Classic McEliece after ISO work." },
     { year: "2026", text: "Weis (ePrint 2026/1984) estimates structural key recovery below generic ISD costs for the candidate sets. A toy key is recovered; full-size estimates include heuristics and do not show a practical break." }
   ];
@@ -604,7 +604,7 @@ function renderPanel5(): string {
 
     <p>Classic McEliece appears in government and defense research contexts where the cost of being wrong is catastrophic and key size is an acceptable tradeoff.</p>
 
-    <div class="callout"><strong>Sources:</strong> <a href="https://classic.mceliece.org/index.html" target="_blank" rel="noopener noreferrer">Classic McEliece project: 1978 encryption and later KEM</a>; <a href="https://classic.mceliece.org/nist.html" target="_blank" rel="noopener noreferrer">2017 NIST submission</a>; <a href="https://csrc.nist.gov/pubs/ir/8545/final" target="_blank" rel="noopener noreferrer">NIST IR 8545 (March 2025, final Round 4 status)</a>; <a href="https://eprint.iacr.org/2026/1984" target="_blank" rel="noopener noreferrer">Weis (ePrint 2026/1984, preprint)</a>.</div>
+    <div class="callout"><strong>Sources:</strong> <a href="https://classic.mceliece.org/index.html" target="_blank" rel="noopener noreferrer">Classic McEliece project: 1978 encryption and later KEM</a>; <a href="https://classic.mceliece.org/nist.html" target="_blank" rel="noopener noreferrer">2017 NIST submission</a>; <a href="https://csrc.nist.gov/pubs/fips/203/final" target="_blank" rel="noopener noreferrer">FIPS 203 (ML-KEM, August 2024)</a>; <a href="https://csrc.nist.gov/pubs/ir/8545/final" target="_blank" rel="noopener noreferrer">NIST IR 8545 (March 2025, final Round 4 status)</a>; <a href="https://eprint.iacr.org/2026/1984" target="_blank" rel="noopener noreferrer">Weis (ePrint 2026/1984, preprint)</a>.</div>
   </section>`;
 }
 
