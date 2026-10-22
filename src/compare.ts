@@ -74,7 +74,7 @@ export const COMPARISON_ROWS: KEMComparisonRow[] = [
   },
   {
     scheme: "HQC-128",
-    publicKeyBytes: 2249,
+    publicKeyBytes: 2241,
     ciphertextBytes: 4433,
     keygenCycles: 1870000,
     encapCycles: 3010000,
@@ -82,7 +82,7 @@ export const COMPARISON_ROWS: KEMComparisonRow[] = [
     securityAssumption: "Quasi-cyclic syndrome decoding (Hamming metric)",
     cryptanalysisSince: 2017,
     approximate: true,
-    source: "Sizes and cycles: HQC Round 3 submission tables (Haswell ref cycles)"
+    source: "Sizes: HQC team specification 2026-10-12, Table 9 (HQC-1). Cycles: archived Round 3 submission benchmarks (Haswell reference)"
   }
 ];
 

@@ -27,6 +27,28 @@ async function waitFor(predicate: () => boolean, timeoutMs = 4000): Promise<void
 }
 
 describe("UI integration (jsdom)", () => {
+  it("shows HQC-1's 2026 public-key size and separates it from archived cycles", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    const bar = Array.from(root.querySelectorAll(".bar-chart .bar-item"))
+      .find((item) => item.textContent?.includes("HQC-128"));
+    expect(bar?.textContent).toContain("2,241 B");
+    expect(bar?.getAttribute("aria-label")).toContain("HQC-128");
+    const panel2 = document.getElementById("panel-2")!;
+    expect(panel2.textContent).toContain("2,241-byte public key");
+
+    const panel4 = document.getElementById("panel-4")!;
+    const hqcRow = Array.from(panel4.querySelectorAll(".comparison-table tbody tr"))
+      .find((row) => row.textContent?.includes("HQC-128"));
+    expect(hqcRow?.textContent).toContain("2,241");
+    expect(hqcRow?.textContent).toContain("4,433");
+    expect(panel4.textContent).toContain("archived Round 3");
+    expect(panel4.querySelector('a[href="https://pqc-hqc.org/doc/hqc_specifications_2026_10_12.pdf"]')).not.toBeNull();
+  });
+
   it("mounts every panel and runs a full encapsulate → decapsulate round-trip", async () => {
     const { initUi } = await import("./ui");
     const root = document.createElement("div");

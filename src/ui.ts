@@ -370,10 +370,10 @@ function renderKemBars(): string {
     const tag = schemeTag(k.name);
     const floored = width !== Math.round((k.bytes / max) * 100);
     return `
-    <li class="bar-item" aria-label="${esc(k.name)}: ${formatBytes(k.bytes)}">
+    <li class="bar-item" aria-label="${esc(k.name)}: ${k.bytes.toLocaleString()} bytes">
       <div class="bar-label">
         <span>${esc(k.name)}</span>
-        <span class="bar-value">${formatBytes(k.bytes)} · ${pct}</span>
+        <span class="bar-value">${k.bytes.toLocaleString()} B · ${pct}</span>
       </div>
       <div class="bar-track">
         <div class="bar-fill" data-scheme="${tag}" style="width:${width}%" role="img" aria-label="${pct} of the largest key shown${floored ? ", drawn at the 2 percent minimum bar width" : ""}"></div>
@@ -400,11 +400,11 @@ function renderPanel2(): string {
 
     <p>One McEliece public key equals <strong>~${Math.round(mcelieceBytes / mlKemBytes)}</strong> ML-KEM-768 keys or <strong>~${Math.round(mcelieceBytes / rsaBytes)}</strong> RSA-2048 keys. It is about <strong>${(mcelieceBytes / photoBytes).toFixed(1)} times</strong> the fixed 100 KB profile-photo example above.</p>
 
-    <h3 class="panel-subtitle">All NIST PQ KEMs by Public Key Size</h3>
+    <h3 class="panel-subtitle">Selected and candidate PQ KEMs by Public Key Size</h3>
     <ul class="bar-chart" aria-label="Public key size comparison bar chart">
       ${renderKemBars()}
     </ul>
-    <p class="panel-note">Every scheme except McEliece is under 1% of the largest bar, so those bars are drawn at a 2% minimum width to stay visible. The percentage beside each label is the real one — read those, not the bar lengths, when comparing the small schemes with one another.</p>
+    <p class="panel-note">Every scheme except McEliece is under 1% of the largest bar, so those bars are drawn at a 2% minimum width to stay visible. The percentage beside each label is the real one — read those, not the bar lengths, when comparing the small schemes with one another. HQC-128 (called HQC-1 in the <a href="https://pqc-hqc.org/doc/hqc_specifications_2026_10_12.pdf" target="_blank" rel="noopener noreferrer">12 October 2026 HQC specification, Table 9</a>) has a 2,241-byte public key.</p>
 
     <h3 class="panel-subtitle">Public Key Hex Dump</h3>
     <p>A live hex dump of the first 8 KB of a generated mceliece348864 public key — simulated bytes at the exact size the Classic McEliece specification defines. (Specified, not standardized: NIST did not standardize Classic McEliece — see the 2025 entry in Panel&nbsp;5.) Scroll to feel the scale.</p>
@@ -495,8 +495,8 @@ function renderComparisonRows(): string {
     return `
     <tr${isHighlight ? ' class="row-highlight"' : ""}>
       <th scope="row">${esc(r.scheme)}</th>
-      <td>${formatBytes(r.publicKeyBytes)}</td>
-      <td>${formatBytes(r.ciphertextBytes)}</td>
+      <td>${r.publicKeyBytes.toLocaleString()} B</td>
+      <td>${r.ciphertextBytes.toLocaleString()} B</td>
       <td>${formatCycles(r.keygenCycles)}</td>
       <td>${formatCycles(r.encapCycles)}</td>
       <td>${formatCycles(r.decapCycles)}</td>
@@ -530,7 +530,7 @@ function renderPanel4(): string {
 
     <p>Classic McEliece has the <strong>smallest ciphertext</strong> of any code-based KEM but the <strong>largest public key</strong> by orders of magnitude.</p>
 
-    <p><strong>Where these numbers come from.</strong> The two kinds of column have different provenance and are labelled separately rather than presented as one measurement set. <em>Sizes</em> are specification figures — for Classic McEliece these are the Round 4 values (specification of 23 October 2022), in which the 32-byte confirmation hash was dropped from the ciphertext and it fell from 128 bytes to 96; older Round 3 write-ups still quote 128. <em>Cycle counts</em> are the Round 3 submission reference benchmarks on Haswell, the last set measured for all four schemes on a common platform; the Round 4 ciphertext change does not meaningfully move them.</p>
+    <p><strong>Where these numbers come from.</strong> The two kinds of column have different provenance and are labelled separately rather than presented as one measurement set. <em>Sizes</em> are specification figures — for Classic McEliece these are the Round 4 values (specification of 23 October 2022), in which the 32-byte confirmation hash was dropped from the ciphertext and it fell from 128 bytes to 96; older Round 3 write-ups still quote 128. HQC-128/1 uses the <a href="https://pqc-hqc.org/doc/hqc_specifications_2026_10_12.pdf" target="_blank" rel="noopener noreferrer">12 October 2026 HQC specification, Table 9</a> (2,241-byte public key, 4,433-byte ciphertext). <em>Cycle counts</em> are archived Round 3 submission reference benchmarks on Haswell, not performance measurements of those current specification versions or a current deployment ranking.</p>
 
     <div class="table-wrap" role="region" aria-label="KEM comparison table" tabindex="0">
       <table class="comparison-table">
