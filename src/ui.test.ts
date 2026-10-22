@@ -380,6 +380,12 @@ describe("UI integration (jsdom)", () => {
     const page = root.textContent ?? "";
     expect(page).toContain(`${expected} years of cryptanalysis`);
     expect(page).toContain(`Why ${expected} Years Matters`);
+    expect(page).toContain("1978 McEliece construction was public-key encryption");
+    expect(page).toContain("Classic McEliece KEM");
+    expect(page).toContain("HQC for standardization, not Classic McEliece");
+    expect(root.querySelector<HTMLAnchorElement>('a[href="https://classic.mceliece.org/index.html"]')).not.toBeNull();
+    expect(root.querySelector<HTMLAnchorElement>('a[href="https://csrc.nist.gov/pubs/ir/8545/final"]')).not.toBeNull();
+    expect(page).not.toMatch(/KEM first proposed.{0,40}1978/i);
     // The comparison table's own column must agree with the prose.
     const cells = Array.from(document.querySelectorAll(".comparison-table tbody tr"))
       .map((tr) => Array.from(tr.querySelectorAll("td")).at(-1)?.textContent ?? "");
