@@ -113,6 +113,33 @@ describe("UI integration (jsdom)", () => {
     expect((document.getElementById("scramble-caption")?.textContent ?? "")).toContain("G");
   });
 
+  // Systematic form is PUBLIC: Classic McEliece's public key is the T of
+  // H = (I | T) (specification of 23 October 2022, section 4.2), and the
+  // identity block is restorable from any public matrix by Gaussian
+  // elimination. An earlier revision called it "the systematic structure Bob's
+  // trapdoor relies on" and showed its disappearance as the hiding.
+  it("names (L, g) as the trapdoor and does not treat the identity block as the secret", async () => {
+    const { initUi } = await import("./ui");
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    await initUi(root);
+
+    const caption = () => document.getElementById("scramble-caption")?.textContent ?? "";
+    const structured = caption();
+    expect(structured).toContain("just systematic form");
+    expect(structured).toContain("Classic McEliece publishes its key that way");
+    expect(structured).toMatch(/support L and polynomial g/);
+
+    const note = root.textContent ?? "";
+    expect(note).toContain("what has to stay secret is which Goppa code this is");
+
+    (document.getElementById("scramble-atk") as HTMLButtonElement).click();
+    const attacker = caption();
+    expect(attacker).toContain("relies on (L, g) staying hidden");
+
+    expect(root.textContent ?? "").not.toContain("the systematic structure Bob's trapdoor relies on");
+  });
+
   it("shows the structural preprint's scope alongside the toy attacker demonstration", async () => {
     const { initUi } = await import("./ui");
     const root = document.createElement("div");
@@ -391,6 +418,21 @@ describe("UI integration (jsdom)", () => {
       .map((tr) => Array.from(tr.querySelectorAll("td")).at(-1)?.textContent ?? "");
     expect(cells[0], "the McEliece row must show the computed span").toBe(`${expected} years`);
     expect(page, "no stale literal may remain").not.toMatch(/\b46 years\b/);
+    // Sidelnikov-Shestakov, "On insecurity of cryptosystems based on
+    // generalized Reed-Solomon codes", Discrete Mathematics and Applications
+    // 2(4), 1992 (DOI 10.1515/dma.1992.2.4.439). An earlier revision said 1988.
+    const sidelnikov = Array.from(root.querySelectorAll(".timeline-item")).find((li) =>
+      (li.textContent ?? "").includes("Sidelnikov-Shestakov")
+    );
+    expect(sidelnikov, "the timeline must carry the Sidelnikov-Shestakov entry").not.toBeUndefined();
+    expect(sidelnikov?.querySelector(".timeline-year")?.textContent).toBe("1992");
+    expect(page).not.toMatch(/1988[\s\S]{0,40}Sidelnikov/);
+    expect(
+      root.querySelector<HTMLAnchorElement>('a[href="https://doi.org/10.1515/dma.1992.2.4.439"]')
+    ).not.toBeNull();
+    // The README dropped the unsourced government/defense usage claim on
+    // 15 November 2026; the page must not keep repeating it.
+    expect(page).not.toContain("government and defense research contexts");
   });
 
   it("escapes HTML metacharacters in rendered output", async () => {

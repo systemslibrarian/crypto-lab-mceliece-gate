@@ -46,6 +46,8 @@ See **[LIMITATIONS.md](LIMITATIONS.md)** for a precise breakdown of what is cryp
 
 **Standards reviewed 15 November 2026:** key sizes follow the [Classic McEliece guide for implementors (23 October 2022), Table 1](https://classic.mceliece.org/mceliece-impl-20221023.pdf) — mceliece348864 public key 261,120 bytes, private key 6,492 bytes; an earlier revision called the private key "261 KB". A bullet crediting PQShield with a Classic McEliece hardware IP was removed because no primary (vendor) source for it was found, and the liboqs bullet now states only what that project's README says about itself.
 
+Also on 15 November 2026, three page corrections: the cryptanalysis timeline dated the Sidelnikov-Shestakov attack to 1988, but the paper is [Sidelnikov & Shestakov, "On insecurity of cryptosystems based on generalized Reed-Solomon codes", *Discrete Mathematics and Applications* 2(4), 1992](https://doi.org/10.1515/dma.1992.2.4.439); the S·G·P scramble captions called the identity block of the systematic generator matrix "the systematic structure Bob's trapdoor relies on", but systematic form is public — Classic McEliece's public key is the T of H = (I | T) ([specification of 23 October 2022](https://classic.mceliece.org/mceliece-spec-20221023.pdf), §4.2) — and the trapdoor is the Goppa support L and polynomial g; and Panel 5 still carried the government/defense usage claim this file dropped above.
+
 ## How to Run Locally
 
 ```bash

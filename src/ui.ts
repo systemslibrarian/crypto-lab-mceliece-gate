@@ -260,10 +260,10 @@ function renderScrambleView(code: ToyGoppaCode, sc: ScrambledGenerator): string 
         ${renderMatrixGrid(code.generator, `Structured generator G, ${code.k} by ${code.n}, filled cells are ones`)}
       </div>
       <p class="scramble-caption" id="scramble-caption" aria-live="polite">
-        <strong>Structured G (${code.k}×${code.n}).</strong> Note the tidy identity block on the left — the systematic structure Bob's trapdoor relies on. Total set bits: ${onesG}.
+        <strong>Structured G (${code.k}×${code.n}).</strong> Note the tidy identity block on the left: that is just systematic form, a layout anyone can restore from a public matrix by Gaussian elimination — Classic McEliece publishes its key that way. Bob's trapdoor is the Goppa structure (support L and polynomial g) behind the right-hand columns. Total set bits: ${onesG}.
       </p>
     </div>
-    <p class="panel-note">S is invertible, so multiplying by it only re-expresses the same set of codewords; P just relabels bit positions. The obvious structure is <em>hidden</em>, not destroyed. A matrix looking random in this toy display does not prove computational indistinguishability: structural attacks may use patterns the display cannot show. (Attacker's G<sub>pub</sub> has ${onesPub} set bits — the tidy identity block is gone.)</p>
+    <p class="panel-note">S is invertible, so multiplying by it only re-expresses the same set of codewords; P just relabels bit positions. The obvious structure is <em>hidden</em>, not destroyed. A matrix looking random in this toy display does not prove computational indistinguishability: structural attacks may use patterns the display cannot show. (Attacker's G<sub>pub</sub> has ${onesPub} set bits, and the tidy identity block is gone — but losing that block is a change of layout, not the hiding: what has to stay secret is which Goppa code this is.)</p>
   </div>`;
 }
 
@@ -570,7 +570,7 @@ function renderPanel5(): string {
   const events = [
     { year: "1978", text: "Robert McEliece proposes a code-based public-key cryptosystem using binary Goppa codes. First practical code-based encryption." },
     { year: "1986", text: "Harald Niederreiter publishes the dual formulation via syndrome decoding, establishing the twin pillars of code-based crypto." },
-    { year: "1988", text: "Sidelnikov-Shestakov attack breaks Reed-Solomon McEliece but Goppa codes remain secure — structural choice validated." },
+    { year: "1992", text: "Sidelnikov-Shestakov attack breaks generalized Reed-Solomon McEliece but Goppa codes remain secure — structural choice validated." },
     { year: "2008", text: "Bernstein, Lange, Peters improve information-set decoding. Best attacks remain exponential. Parameters adjusted, scheme unbroken." },
     { year: "2017", text: "The later Classic McEliece KEM is submitted to NIST's PQC process. It advances through all four rounds." },
     { year: "2022", text: "NIST selects CRYSTALS-Kyber for standardization; it later becomes ML-KEM in FIPS 203 (2024). Classic McEliece continues as a Round 4 candidate." },
@@ -602,9 +602,7 @@ function renderPanel5(): string {
 
     <p>ML-KEM has not been broken and nothing has invalidated its parameters. Classic McEliece's assumption has been studied since 1978, but its cost estimate is still evolving too. The 2026 structural key-recovery estimates are below generic ISD figures under stated heuristic and memory-model assumptions; no production-size key recovery has been demonstrated. Long-term deployments should evaluate that uncertainty alongside the benefit of a distinct code-based assumption.</p>
 
-    <p>Classic McEliece appears in government and defense research contexts where the cost of being wrong is catastrophic and key size is an acceptable tradeoff.</p>
-
-    <div class="callout"><strong>Sources:</strong> <a href="https://classic.mceliece.org/index.html" target="_blank" rel="noopener noreferrer">Classic McEliece project: 1978 encryption and later KEM</a>; <a href="https://classic.mceliece.org/nist.html" target="_blank" rel="noopener noreferrer">2017 NIST submission</a>; <a href="https://csrc.nist.gov/pubs/fips/203/final" target="_blank" rel="noopener noreferrer">FIPS 203 (ML-KEM, August 2024)</a>; <a href="https://csrc.nist.gov/pubs/ir/8545/final" target="_blank" rel="noopener noreferrer">NIST IR 8545 (March 2025, final Round 4 status)</a>; <a href="https://eprint.iacr.org/2026/1984" target="_blank" rel="noopener noreferrer">Weis (ePrint 2026/1984, preprint)</a>.</div>
+    <div class="callout"><strong>Sources:</strong> <a href="https://classic.mceliece.org/index.html" target="_blank" rel="noopener noreferrer">Classic McEliece project: 1978 encryption and later KEM</a>; <a href="https://classic.mceliece.org/nist.html" target="_blank" rel="noopener noreferrer">2017 NIST submission</a>; <a href="https://doi.org/10.1515/dma.1992.2.4.439" target="_blank" rel="noopener noreferrer">Sidelnikov &amp; Shestakov, "On insecurity of cryptosystems based on generalized Reed-Solomon codes", <em>Discrete Mathematics and Applications</em> 2(4), 1992</a>; <a href="https://csrc.nist.gov/pubs/fips/203/final" target="_blank" rel="noopener noreferrer">FIPS 203 (ML-KEM, August 2024)</a>; <a href="https://csrc.nist.gov/pubs/ir/8545/final" target="_blank" rel="noopener noreferrer">NIST IR 8545 (March 2025, final Round 4 status)</a>; <a href="https://eprint.iacr.org/2026/1984" target="_blank" rel="noopener noreferrer">Weis (ePrint 2026/1984, preprint)</a>.</div>
   </section>`;
 }
 
@@ -732,7 +730,7 @@ function initScrambleView(code: ToyGoppaCode, sc: ScrambledGenerator): void {
       btn: bob,
       matrix: code.generator,
       label: `Structured generator G, ${code.k} by ${code.n}`,
-      caption: `<strong>Structured G (${code.k}×${code.n}).</strong> Note the tidy identity block on the left — the systematic structure Bob's trapdoor relies on. Total set bits: ${ones(code.generator)}.`
+      caption: `<strong>Structured G (${code.k}×${code.n}).</strong> Note the tidy identity block on the left: that is just systematic form, a layout anyone can restore from a public matrix by Gaussian elimination — Classic McEliece publishes its key that way. Bob's trapdoor is the Goppa structure (support L and polynomial g) behind the right-hand columns. Total set bits: ${ones(code.generator)}.`
     },
     mixed: {
       btn: mixed,
@@ -744,7 +742,7 @@ function initScrambleView(code: ToyGoppaCode, sc: ScrambledGenerator): void {
       btn: atk,
       matrix: sc.gPub,
       label: `Scrambled public generator G_pub, ${code.k} by ${code.n}`,
-      caption: `<strong>Attacker sees G<sub>pub</sub> = S · G · P.</strong> The permutation P has now shuffled the columns too. No identity block, no visible Goppa structure — just a random-looking code. This is the public key. Set bits: ${ones(sc.gPub)}.`
+      caption: `<strong>Attacker sees G<sub>pub</sub> = S · G · P.</strong> The permutation P has now shuffled the columns too. No visible Goppa structure — just a random-looking code. This is the public key. The identity block has gone too, but that part carries no secret: Classic McEliece publishes a systematic-form key and relies on (L, g) staying hidden. Set bits: ${ones(sc.gPub)}.`
     }
   } as const;
 
