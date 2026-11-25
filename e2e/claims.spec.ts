@@ -88,3 +88,48 @@ test('current BSI guidance qualifies prospective McEliece deployments', async ({
   await expect(page.locator('#panel-4')).not.toContainText('McEliece: viable');
   await expect(page.locator('#panel-4')).toContainText('avoid for new applications (BSI)');
 });
+
+test('editing the message retires its ciphertext and any pending decryption', async ({ page }) => {
+  await page.goto('.');
+  await page.locator('#btn-encap').click();
+  await page.locator('#btn-decap').click();
+  const input = page.locator('#aes-message');
+  const seal = page.locator('#btn-encrypt');
+  const open = page.locator('#btn-decrypt');
+  const out = page.locator('#out-aes');
+  await input.fill('First classroom record');
+  await seal.click();
+  await open.click();
+  await expect(out).toContainText('First classroom record');
+  await input.fill('Second classroom record');
+  await expect(out).toBeEmpty();
+  await expect(open).toBeDisabled();
+  await seal.click();
+  await open.click();
+  await expect(out).toContainText('Second classroom record');
+
+  // Change the input in the same task that starts Web Crypto. Wait for its
+  // real result, then check that the old completion did not repaint the page.
+  await page.evaluate(async () => {
+    const cryptoApi = crypto.subtle;
+    const decrypt = cryptoApi.decrypt;
+    let finished!: () => void;
+    const done = new Promise<void>(resolve => { finished = resolve; });
+    cryptoApi.decrypt = async (...args) => {
+      try { return await decrypt.apply(cryptoApi, args); }
+      finally { setTimeout(finished, 0); }
+    };
+    try {
+      document.querySelector<HTMLButtonElement>('#btn-decrypt')!.click();
+      const message = document.querySelector<HTMLTextAreaElement>('#aes-message')!;
+      message.value = 'Third classroom record';
+      message.dispatchEvent(new Event('input', { bubbles: true }));
+      await done;
+    } finally {
+      cryptoApi.decrypt = decrypt;
+    }
+  });
+  await expect(out).toBeEmpty();
+  await expect(open).toBeDisabled();
+  await expect(page.locator('#aria-live-status')).toContainText('Message edited');
+});

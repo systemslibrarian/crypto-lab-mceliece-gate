@@ -778,16 +778,30 @@ function initPanel3(code: ToyGoppaCode): void {
   let aesKey: CryptoKey | null = null;
   let encryptedData: { iv: Uint8Array; ciphertext: Uint8Array } | null = null;
 
+  let messageRevision = 0;
+  const clearMessageResult = (): void => {
+    messageRevision++;
+    encryptedData = null;
+    btnDecrypt.disabled = true;
+    btnEncrypt.disabled = aesKey === null;
+    clearOut("out-aes");
+  };
+
+  q<HTMLTextAreaElement>("aes-message")?.addEventListener("input", () => {
+    clearMessageResult();
+    if (aesKey) {
+      setError("");
+      setStatus("Message edited. Encrypt the current text to start a new round trip.");
+    }
+  });
+
   const resetDownstream = (): void => {
     btnDecap.disabled = false;
     btnAttack.disabled = true;
-    btnEncrypt.disabled = true;
-    btnDecrypt.disabled = true;
     aesKey = null;
-    encryptedData = null;
+    clearMessageResult();
     clearOut("out-decap");
     clearOut("out-attack");
-    clearOut("out-aes");
   };
 
   const currentWeight = (): number =>
@@ -1021,14 +1035,18 @@ function initPanel3(code: ToyGoppaCode): void {
 
   // Step 4a: Encrypt
   btnEncrypt.addEventListener("click", async () => {
+    clearMessageResult();
+    const revision = messageRevision;
     btnEncrypt.disabled = true;
     setError("");
     const msg = q<HTMLTextAreaElement>("aes-message")?.value ?? "";
     if (!msg) { setError("Enter a message to encrypt."); btnEncrypt.disabled = false; return; }
-    if (!aesKey) { setError("No AES key derived — decapsulate successfully first."); btnEncrypt.disabled = false; return; }
+    if (!aesKey) { setError("No AES key derived — decapsulate successfully first."); return; }
     setStatus("Encrypting with AES-256-GCM…");
     try {
-      encryptedData = await encryptMessage(aesKey, msg);
+      const sealed = await encryptMessage(aesKey, msg);
+      if (revision !== messageRevision) return;
+      encryptedData = sealed;
       show("out-aes", `
         <p><strong>AES-256-GCM IV:</strong> <span class="result-mono">${toHex(encryptedData.iv)}</span></p>
         <p><strong>Ciphertext:</strong> <span class="result-mono">${toHex(encryptedData.ciphertext.slice(0, 64))}${encryptedData.ciphertext.length > 64 ? "…" : ""}</span></p>
@@ -1037,20 +1055,22 @@ function initPanel3(code: ToyGoppaCode): void {
       btnDecrypt.disabled = false;
       setStatus("Encrypted. Click Decrypt to verify the round-trip.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Encryption failed");
+      if (revision === messageRevision) setError(err instanceof Error ? err.message : "Encryption failed");
     } finally {
-      btnEncrypt.disabled = false;
+      if (revision === messageRevision) btnEncrypt.disabled = false;
     }
   });
 
   // Step 4b: Decrypt
   btnDecrypt.addEventListener("click", async () => {
+    const revision = messageRevision;
     btnDecrypt.disabled = true;
     setError("");
-    if (!aesKey || !encryptedData) { setError("Encrypt a message first."); btnDecrypt.disabled = false; return; }
+    if (!aesKey || !encryptedData) { setError("Encrypt a message first."); return; }
     setStatus("Decrypting…");
     try {
       const plaintext = await decryptMessage(aesKey, encryptedData.iv, encryptedData.ciphertext);
+      if (revision !== messageRevision) return;
       const outEl = q<HTMLDivElement>("out-aes");
       if (outEl) {
         const p = document.createElement("p");
@@ -1064,9 +1084,9 @@ function initPanel3(code: ToyGoppaCode): void {
       }
       setStatus("Decryption successful. Full KEM + DEM round-trip complete.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Decryption failed");
+      if (revision === messageRevision) setError(err instanceof Error ? err.message : "Decryption failed");
     } finally {
-      btnDecrypt.disabled = false;
+      if (revision === messageRevision) btnDecrypt.disabled = false;
     }
   });
 }
