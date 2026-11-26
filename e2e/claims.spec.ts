@@ -133,3 +133,28 @@ test('editing the message retires its ciphertext and any pending decryption', as
   await expect(open).toBeDisabled();
   await expect(page.locator('#aria-live-status')).toContainText('Message edited');
 });
+
+test('the message round trip compares exact Unicode text before reporting success', async ({ page }) => {
+  await page.goto('.');
+  await page.locator('#btn-encap').click();
+  await page.locator('#btn-decap').click();
+  const message = page.locator('#aes-message');
+  const recovered = page.locator('#out-aes p').filter({ hasText: 'Decrypted:' }).locator('span');
+  const status = page.locator('#aria-live-status');
+  const text = '\uFEFF  Café 🔐  ';
+  await message.fill(text);
+  await page.locator('#btn-encrypt').click();
+  await page.locator('#btn-decrypt').click();
+  await expect(status).toContainText('round-trip complete');
+  expect(await recovered.textContent()).toBe(text);
+
+  // TextEncoder replaces an unpaired surrogate with U+FFFD.
+  await message.evaluate((field: HTMLTextAreaElement) => {
+    field.value = 'x\uD800y';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  });
+  await page.locator('#btn-encrypt').click();
+  await page.locator('#btn-decrypt').click();
+  await expect(status).toHaveText('Text comparison failed.');
+  expect(await recovered.textContent()).toBe('x\uFFFDy');
+});

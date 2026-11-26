@@ -1082,7 +1082,12 @@ function initPanel3(code: ToyGoppaCode): void {
         p.appendChild(span);
         outEl.appendChild(p);
       }
-      setStatus("Decryption successful. Full KEM + DEM round-trip complete.");
+      if (plaintext === q<HTMLTextAreaElement>("aes-message")?.value) {
+        setStatus("Decryption successful. Full KEM + DEM round-trip complete.");
+      } else {
+        setError("The ciphertext authenticated, but the decoded text differs from the input.");
+        setStatus("Text comparison failed.");
+      }
     } catch (err) {
       if (revision === messageRevision) setError(err instanceof Error ? err.message : "Decryption failed");
     } finally {

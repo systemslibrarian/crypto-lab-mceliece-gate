@@ -190,5 +190,6 @@ export async function decryptMessage(key: CryptoKey, iv: Uint8Array, ciphertext:
     key,
     toArrayBuffer(ciphertext)
   );
-  return new TextDecoder().decode(plaintext);
+  // U+FEFF may be the first character of the message the student entered.
+  return new TextDecoder("utf-8", { ignoreBOM: true }).decode(plaintext);
 }
